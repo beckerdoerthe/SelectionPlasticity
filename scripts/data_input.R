@@ -1,0 +1,109 @@
+# Becker et al - data input
+
+
+#################
+### libraries ###
+#################
+library(ggplot2)
+library(cowplot)
+library(ggbeeswarm)
+library(gridExtra)
+library(data.table)
+library(viridis)
+library(dplyr)
+library(doMC)
+registerDoMC(20)
+library(sjstats)
+library(rstatix)
+library(patchwork)
+
+
+#######################
+### load pheno data ###
+#######################
+
+load(file = "data/shape_use.ag_filtered_final_02June2020.Rdata")
+# final_data
+
+setkey(final_data, cloneid_geno, i)
+
+# reduce control data (choose random 4 Geno IDs for each treatment group in all three ctrl clones each)
+set.seed(123)
+random_ctrl_O <- final_data[group == 'ctrl_O'][, c('cloneid_geno','Geno','treatment')] %>% group_by(cloneid_geno, treatment) %>% sample_n(4)
+ctrlO_clones <- final_data[Geno %in% random_ctrl_O$Geno][, -"max_height"]
+
+set.seed(123)
+random_ctrl_A <- final_data[group == 'ctrl_A'][, c('cloneid_geno','Geno','treatment')] %>% group_by(cloneid_geno, treatment) %>% sample_n(4)
+ctrlA_clones <- final_data[Geno %in% random_ctrl_A$Geno][, -"max_height"]
+
+O_clones <- final_data[group == "O"][, -"max_height"]
+A_clones <- final_data[group == "A"][, -"max_height"]
+
+all_data_Os <- rbind(O_clones,ctrlO_clones)
+all_data_As <- rbind(A_clones,ctrlA_clones)
+
+all_data <- rbind(O_clones,ctrlO_clones,A_clones,ctrlA_clones)
+
+
+# find O clones with highest read depth per cluster
+all_data_Os[,revorder:=frankv(medrd,order=-1,ties.method = "first")]  
+setkey(all_data_Os, revorder, Geno, i) 
+tmp_medrd_Os <- unique(all_data_Os[i==150][,c('cloneid_geno', 'SC_unique', 'medrd')] %>% group_by(SC_unique) %>% slice(1))
+medrd_Os <- as.data.table(tmp_medrd_Os[,'cloneid_geno'])
+
+all_data_O.medrd <- all_data[cloneid_geno %in% medrd_Os$cloneid_geno]
+
+# exclude O clones with less than 1 sample per treatment&instar group 
+table(all_data_O.medrd$SC_unique, all_data_O.medrd$treatment)
+
+# exclude missing data in ctrl and treatment (CLUNKY CODE, but works!)
+tbl_all_data_O <- as.data.table(table(all_data_O.medrd$SC_unique, all_data_O.medrd$treatment, all_data_O.medrd$instar))
+setnames(tbl_all_data_O, c('V1','V2','V3','N'), c('SC','treatment','instar','count'))
+tbl_all_data_O_wide <- as.data.table(dcast(tbl_all_data_O, SC ~ c(paste0("treatment_", treatment, "_instar_", instar)), fun=mean, value.var='count'))
+
+data_O_wide_use <- all_data_O.medrd[SC_unique %in% tbl_all_data_O_wide[treatment_0.5_instar_1 >= 641 & treatment_0.5_instar_2 >= 641 & treatment_0_instar_1 >= 641 & treatment_0_instar_2 >= 641]$SC]  
+Os <- unique(levels(as.factor(data_O_wide_use$cloneid_geno)))  ### 51 unique clones
+
+
+# exclude A clones with less than 1 sample per treatment&instar group
+table(all_data_As$cloneid_geno, all_data_As$treatment, all_data_As$instar)
+
+# exclude missing data in ctrl and treatment (CLUNKY CODE, but works!)
+tbl_all_data_A <- as.data.table(table(all_data_As$cloneid_geno, all_data_As$treatment, all_data_As$instar))
+setnames(tbl_all_data_A, c('V1','V2','V3','N'), c('cloneid_geno','treatment','instar','count'))
+tbl_all_data_A_wide <- as.data.table(dcast(tbl_all_data_A, cloneid_geno ~ c(paste0("treatment_", treatment, "_instar_", instar)), fun=mean, value.var='count'))
+
+data_A_wide_use <- all_data_As[cloneid_geno %in% tbl_all_data_A_wide[treatment_0.5_instar_1 >= 641 & treatment_0.5_instar_2 >= 641 & treatment_0_instar_1 >= 641 & treatment_0_instar_2 >= 641]$cloneid_geno]
+
+# find A clones with highest read depth - ignore here and use all As
+data_A_wide_use[,revorder:=frankv(medrd,order=-1,ties.method = "first")]  
+setkey(data_A_wide_use, revorder, Geno, i) 
+tmp_medrd_As <- unique(data_A_wide_use[i==150][,c('cloneid_geno', 'SC_unique', 'medrd')]$cloneid_geno)
+medrd_As <- tmp_medrd_As
+
+
+# exclude pond "D10"
+all_data_final <- all_data[cloneid_geno %in% Os | cloneid_geno %in% medrd_As][! pond == "D10"]
+all_data_final[, i:= as.numeric(i)]
+all_data_final[, instar_new := ifelse(all_data_final$instar == 1, 'instar 1', 'instar 2')]
+all_data_final[, SC_group_new := ifelse(all_data_final$SC_group == "O", 'cluster O', 'cluster A')]
+all_data_final[, treatment_new := ifelse(all_data_final$treatment == 0, 'C', 'P')]
+all_data_final[, max_height_new := max(height, na.rm=T), by=c('Geno','instar')]
+
+setkey(all_data_final, cloneid_geno, i) 
+
+save(all_data_final, file = "all_data_final.RData")
+
+
+
+# Supplemental Table - clone IDs w/ pond and season info
+SupplTab <- all_data_final[i == 150][, list(height = mean(height)), list(cloneid_geno, pond, season, SC_group)]
+SupplTab[, season_new := ifelse(season == "spring_1_2017", "Spring 2017", 
+                           ifelse(season == "spring_2_2017", "Spring 2017", 
+                            ifelse(season == "fall_2016", "Fall 2016", 
+                             ifelse(season == "spring_2016", "Spring 2016", "NA"))))]
+
+SupplTab_final <- SupplTab[, -c("height","season")]
+setnames(SupplTab_final, c("cloneid_geno","pond","SC_group","season_new"), c("clone ID", "pond", "cluster", "season"))
+write.csv(SupplTab_final, file="SupplementTable1.csv", row.names=FALSE)
+
