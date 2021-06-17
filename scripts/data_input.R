@@ -28,9 +28,25 @@ load(file = "data/shape_use.ag_filtered_final_02June2020.Rdata")
 setkey(final_data, cloneid_geno, i)
 
 # reduce control data (choose random 4 Geno IDs for each treatment group in all three ctrl clones each)
-set.seed(123)
-random_ctrl_O <- final_data[group == 'ctrl_O'][, c('cloneid_geno','Geno','treatment')] %>% group_by(cloneid_geno, treatment) %>% sample_n(4)
-ctrlO_clones <- final_data[Geno %in% random_ctrl_O$Geno][, -"max_height"]
+# set.seed(123)
+# random_ctrl_O <- final_data[group == 'ctrl_O'][, c('cloneid_geno','Geno','treatment')] %>% group_by(cloneid_geno, treatment) %>% sample_n(4)
+# ctrlO_clones <- final_data[Geno %in% random_ctrl_O$Geno][, -"max_height"]
+
+## use control clones used for GRM prep (from previous set.seed)
+new_controls <- c("April_2017_DBunk_131_101952_0_1_1A", "April_2017_DBunk_131_101989_0_1_1D", "April_2017_DBunk_131_110092_0_1_1A", "April_2017_DBunk_131_112503_0_1_2A", 
+                  "April_2017_DBunk_132_101990_0_1_1A", "April_2017_DBunk_132_110098_0_1_2A", "April_2017_DBunk_132_110275_0_1_2B", "April_2017_DBunk_132_111147_0_1_1C", 
+                  "April_2017_DBunk_90_101634_0_1_2B", "April_2017_DBunk_90_110581_0_1_2A", "April_2017_DBunk_90_110803_0_1_2B", "April_2017_DBunk_131_101248_0.5_1_1A", 
+                  "April_2017_DBunk_131_110405_0.5_1_1A", "April_2017_DBunk_131_111570_0.5_1_1B" , "April_2017_DBunk_132_101270_0.5_1_2A", "April_2017_DBunk_132_102083_0.5_1_1B", 
+                  "April_2017_DBunk_132_111579_0.5_1_2A", "April_2017_DBunk_132_112514_0.5_1_1B", "April_2017_DBunk_90_101638_0.5_1_1B", "April_2017_DBunk_90_101641_0.5_1_3A", 
+                  "April_2017_DBunk_90_101972_0.5_1_1A", "April_2017_DBunk_90_102089_0.5_1_1D", "April_2017_DBunk_131_101952_0_2_1A", "April_2017_DBunk_131_101989_0_2_1D", 
+                  "April_2017_DBunk_131_110092_0_2_1A", "April_2017_DBunk_132_110098_0_2_2A", "April_2017_DBunk_132_110275_0_2_2B", "April_2017_DBunk_132_111147_0_2_1C", 
+                  "April_2017_DBunk_90_101634_0_2_2B", "April_2017_DBunk_90_110581_0_2_2A", "April_2017_DBunk_90_110803_0_2_2B", "April_2017_DBunk_131_101248_0.5_2_1A", 
+                  "April_2017_DBunk_131_101958_0.5_2_2A", "April_2017_DBunk_131_110405_0.5_2_1A", "April_2017_DBunk_131_111570_0.5_2_1B", "April_2017_DBunk_132_101270_0.5_2_2A", 
+                  "April_2017_DBunk_132_102083_0.5_2_1B", "April_2017_DBunk_132_111579_0.5_2_2A", "April_2017_DBunk_90_101638_0.5_2_1B", "April_2017_DBunk_90_101641_0.5_2_3A", 
+                  "April_2017_DBunk_90_101972_0.5_2_1A", "April_2017_DBunk_90_102089_0.5_2_1D")
+
+ctrlO_clones <- final_data[GenoPLUS %in% new_controls][, -"max_height"]
+
 
 set.seed(123)
 random_ctrl_A <- final_data[group == 'ctrl_A'][, c('cloneid_geno','Geno','treatment')] %>% group_by(cloneid_geno, treatment) %>% sample_n(4)

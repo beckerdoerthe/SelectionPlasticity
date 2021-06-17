@@ -13,7 +13,7 @@ library(viridis)
 library(dplyr)
 library(doMC)
 registerDoMC(20)
-library(sjstats)
+library(effectsize)
 library(rstatix)
 library(patchwork)
 
@@ -30,10 +30,10 @@ load(file = "data/all_data_final.RData")
 ## AVERAGE SHAPE 
 all_data_final.ag <- all_data_final[i <= 600][, list(height = mean(height)), list(i, treatment, instar_new, SC_group_new)]
 
-ag.line_plot <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"],  aes(x=i, y=height)) +   
+ag.line_plot <- ggplot(data = all_data_final.ag[SC_group_new == "cluster A"],  aes(x=i, y=height)) +   
   
-                    geom_line(data = all_data_final.ag[treatment == 0][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1.5, colour = "black") + 
-                    geom_line(data = all_data_final.ag[treatment == 0.5][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1.5, colour = "red") + 
+                    geom_line(data = all_data_final.ag[treatment == 0][SC_group_new == "cluster A"],  aes(x=i, y=height), size = 1.5, colour = "black") + 
+                    geom_line(data = all_data_final.ag[treatment == 0.5][SC_group_new == "cluster A"],  aes(x=i, y=height), size = 1.5, colour = "red") + 
                     
                     ylim(0, 0.28) +
                     
@@ -64,10 +64,10 @@ ag.line_plot  + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_
 # dev.off()
 
 ## FREQUENCY MAX HEIGHT
-hist_plot <- ggplot(data = all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height],  aes(x=i)) +   
+hist_plot <- ggplot(data = all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height],  aes(x=i)) +   
   
-                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][treatment == 0.5], aes(x=i), bins = 50, fill='#ff4c4c', color='#FF0000', alpha=0.2, size=0.5) + 
-                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][treatment == 0], aes(x=i), bins = 50, fill='#C0C0C0', color='#000000', alpha=0.2, size=0.5) + 
+                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][treatment == 0.5], aes(x=i), bins = 50, fill='#ff4c4c', color='#FF0000', alpha=0.2, size=0.5) + 
+                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][treatment == 0], aes(x=i), bins = 50, fill='#C0C0C0', color='#000000', alpha=0.2, size=0.5) + 
                     
                     facet_wrap(~instar_new, ncol=1) +
                     
@@ -97,9 +97,9 @@ hist_plot + labs(x = "dorsal position", y = "frequency") + scale_x_continuous(br
 
 # chisq 
 chisq.test(table(all_data_final[i <= 300][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"]$i, all_data_final[i <= 300][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"]$treatment_new))
-# X(df=123, N=428) = 212.67, p-value = 9.461e-07
+# X(df=121, N=411) = 210.32, p-value = 8.926e-07
 chisq.test(table(all_data_final[i <= 300][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"]$i, all_data_final[i <= 300][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"]$treatment_new))
-# X(df=110, N=390) = 217.58, p-value = 4.527e-09           
+# X(df=112, N=380) = 222.4, p-value = 2.676e-09       
 
 
 chisq.test(table(all_data_final[i <= 300][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"]$i, all_data_final[i <= 300][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"]$treatment_new))
@@ -109,7 +109,7 @@ chisq.test(table(all_data_final[i <= 300][SC_group_new == "cluster A"][max_heigh
 
 
 ## MAX HEIGHT
-dorsal_height_plot <- ggplot(data = all_data_final[i==150][SC_group == "O"],   
+dorsal_height_plot <- ggplot(data = all_data_final[i==150][SC_group == "A"],   
                              aes(y=max_height_new, x=as.factor(treatment_new), color=as.factor(treatment_new))) + 
                         geom_beeswarm(size = 0.5, cex=1.5, priority='density', dodge.width=1) +  
                         geom_boxplot(fill="white", width=0.3, outlier.colour='grey', outlier.size = 0.1) +
@@ -139,19 +139,20 @@ dorsal_height_plot + labs(x = "treatment", y = paste("max dorsal height [mm]")) 
 # dev.off()
 
 
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"][treatment_new == "C"]$max_height_new)
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"][treatment_new == "P"]$max_height_new)
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"][treatment_new == "C"]$max_height_new)
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"][treatment_new == "P"]$max_height_new)
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"][treatment_new == "C"]$max_height_new)  # normal
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"][treatment_new == "P"]$max_height_new)  # not normal
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"][treatment_new == "C"]$max_height_new)  # normal
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"][treatment_new == "P"]$max_height_new)  # normal
 
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"][treatment_new == "C"]$max_height_new)
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"][treatment_new == "P"]$max_height_new)
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 2"][treatment_new == "C"]$max_height_new)
-shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 2"][treatment_new == "P"]$max_height_new)
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"][treatment_new == "C"]$max_height_new)  # not normal
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"][treatment_new == "P"]$max_height_new)  # normal
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 2"][treatment_new == "C"]$max_height_new)  # normal
+shapiro.test(all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 2"][treatment_new == "P"]$max_height_new)  # normal
 
 
 # O_I1
 wilcox_O_I1 <- wilcox.test(max_height_new ~ treatment_new, data = all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"]) 
+wilcox_O_I1
 
 Zscore_O_I1 = qnorm(wilcox_O_I1$p.value/2)
 Zscore_O_I1
@@ -159,11 +160,12 @@ Zscore_O_I1
 wilcox_effectsize_O_I1 <- wilcox_effsize(max_height_new ~ treatment_new, data = all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 1"])
 wilcox_effectsize_O_I1
 
-# (Z = -9.264, r =  0.447, p-value < 2.2e-16)
+# (Z = -8.95855, p-value < 2.2e-16)
 
 
 # O_I2
 wilcox_O_I2 <- wilcox.test(max_height_new ~ treatment_new, data = all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"]) 
+wilcox_O_I2
 
 Zscore_O_I2 = qnorm(wilcox_O_I2$p.value/2)
 Zscore_O_I2
@@ -171,15 +173,12 @@ Zscore_O_I2
 wilcox_effectsize_O_I2 <- wilcox_effsize(max_height_new ~ treatment_new, data = all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][instar_new == "instar 2"])
 wilcox_effectsize_O_I2
 
-# (Z = -9.775, r =  0.494, p-value < 2.2e-16)
-
-##
-# (Z < -9.264, r > 0.447, p-value < 2.2e-16)
-
+# (Z = -9.83551, p-value < 2.2e-16)
 
 
 # A_I1
 wilcox_A_I1 <- wilcox.test(max_height_new ~ treatment_new, data = all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"]) 
+wilcox_A_I1
 
 Zscore_A_I1 = qnorm(wilcox_A_I1$p.value/2)
 Zscore_A_I1
@@ -187,7 +186,7 @@ Zscore_A_I1
 wilcox_effectsize_A_I1 <- wilcox_effsize(max_height_new ~ treatment_new, data = all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 1"])
 wilcox_effectsize_A_I1
 
-# (Z = -8.722, r =  0.405, p-value < 2.2e-16)
+# (Z = -8.722, p-value < 2.2e-16)
 
 
 # A_I2
@@ -199,16 +198,7 @@ Zscore_A_I2
 wilcox_effectsize_A_I2 <- wilcox_effsize(max_height_new ~ treatment_new, data = all_data_final[i <= 600][SC_group_new == "cluster A"][max_height_new == height][instar_new == "instar 2"])
 wilcox_effectsize_A_I2
 
-# (Z = -10.455, r =  0.502, p-value < 2.2e-16)
-
-## AENDERN
-# (Z < -8.722, r > 0.405, p-value < 2.2e-16)
-
-
-
-
-
-
+# (Z = -10.455, p-value < 2.2e-16)
 
 
 ##NECKTEETH
@@ -231,7 +221,7 @@ nteeth_number[, totalN := case_when(SC_group_new=='cluster O' & instar_new=='ins
 nteeth_number[, proportion_nteeth := N/totalN]
 nteeth_number[, percent_nteeth := proportion_nteeth * 100]    
 
-nteeth_plot <- ggplot(data = nteeth_number[SC_group_new == "cluster O"], 
+nteeth_plot <- ggplot(data = nteeth_number[SC_group_new == "cluster A"], 
                          aes(y=percent_nteeth, x=nteeth, fill=as.factor(treatment_new))) + 
                   geom_bar(stat="identity", position = position_dodge2(preserve = "single")) + 
                   facet_wrap(~instar_new, ncol=1) +
@@ -260,9 +250,9 @@ nteeth_plot + labs(x = "# of neckteeth", y = "[%]") + scale_x_continuous(limits=
 
 
 chisq.test(table(all_data_final[i == 150][SC_group_new == "cluster O"][instar_new == "instar 1"]$nteeth, all_data_final[i == 150][SC_group_new == "cluster O"][instar_new == "instar 1"]$treatment_new))
-# X(df=6, N=429) = 7.3216, p-value = 0.2921
+# X(df=6, N=412) = 7.8407, p-value = 0.25
 chisq.test(table(all_data_final[i == 150][SC_group_new == "cluster O"][instar_new == "instar 2"]$nteeth, all_data_final[i == 150][SC_group_new == "cluster O"][instar_new == "instar 2"]$treatment_new))
-# X(df=7, N=391) = 185.37, p-value < 2.2e-16
+# X(df=7, N=381) = 179.83, p-value < 2.2e-16
 
 chisq.test(table(all_data_final[i == 150][SC_group_new == "cluster A"][instar_new == "instar 1"]$nteeth, all_data_final[i == 150][SC_group_new == "cluster A"][instar_new == "instar 1"]$treatment_new))
 # X(df=4, N=464) = 10.588, p-value = 0.0316
@@ -274,7 +264,6 @@ chisq.test(table(all_data_final[i == 150][SC_group_new == "cluster A"][instar_ne
 ########
 ########
 
-
 ag.line_plot  + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000"))
 
 hist_plot + labs(x = "dorsal position", y = "frequency") + scale_x_continuous(breaks=c(0,150,300))
@@ -284,21 +273,16 @@ dorsal_height_plot + labs(x = "treatment", y = paste("max dorsal height [mm]")) 
 nteeth_plot + labs(x = "# of neckteeth", y = "[%]") + scale_x_continuous(limits=c(-0.5,4.5)) + scale_fill_manual(values=c("#000000","#FF0000"))
 
 
-
-patchwork_plots_induction2 <- ag.line_plot + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000")) + 
+patchwork_plots_induction <- ag.line_plot + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000")) + 
   hist_plot + labs(x = "dorsal position", y = "frequency") + scale_x_continuous(breaks=c(0,150,300)) + 
   dorsal_height_plot + labs(x = "treatment", y = paste("max dorsal height [mm]")) + scale_color_manual(values=c("#000000","#FF0000")) +
   nteeth_plot + labs(x = "# of neckteeth", y = "[%]") + scale_x_continuous(limits=c(-0.5,4.5)) + scale_fill_manual(values=c("#000000","#FF0000")) +
   plot_layout(ncol=4, widths = c(1,1,1,1))
 
-patchwork_plots_induction2
-
-
+patchwork_plots_induction
 
 
 ## ANOVA ##
-
-all_data_final
 
 height_ANOVA <- foreach(group.i=unique(all_data_final$SC_group_new), .errorhandling="remove", .combine="rbind") %do% {
   
@@ -312,34 +296,33 @@ height_ANOVA <- foreach(group.i=unique(all_data_final$SC_group_new), .errorhandl
                       
                       tmp <- tmp_dat_use[i==i.i]
                       
-                      # anova (w/ & w/o neckteeth) - use type II due to unbalanced data
-                      tmp.lm <- lm(height~cloneid_geno*treatment+batch, tmp)
-                      tmp.II.aov <- car::Anova(tmp.lm, type = 2)
+                      # tmp.lm <- lm(height~cloneid_geno*treatment+batch, tmp)
+                      # tmp.II.aov <- car::Anova(tmp.fit, type = 2)
                       
-                      # get residuals and anova_stats()                                  
-                      etasq_out <- eta_sq(tmp.lm, partial=TRUE, ci.lvl = .99)
+                      tmp.fit <- aov(height~cloneid_geno*treatment+batch, tmp)
+
+                      etasq_out <- as.data.table(eta_squared(tmp.fit, partial=TRUE, ci = .99))
+                      # etasq_out <- eta_sq(tmp.lm, partial=TRUE, ci.lvl = .99)
                       
-                      # format & return output
-                      
-                      ### MODIFY HERE (!)
+                      #
                       data.table(i=i.i,
                                  instar = instar.i,
                                  group = group.i,
                                  
-                                 partial_eta = c(etasq_out[1,2],
+                                 partial_eta = unlist(c(etasq_out[1,2],
                                                  etasq_out[2,2],
                                                  etasq_out[3,2],
-                                                 etasq_out[4,2]),
+                                                 etasq_out[4,2])),
                                  
-                                 lCI_eta = c(etasq_out[1,3],
-                                             etasq_out[2,3],
-                                             etasq_out[3,3],
-                                             etasq_out[4,3]),
-                                 
-                                 uCI_eta = c(etasq_out[1,4],
+                                 lCI_eta = unlist(c(etasq_out[1,4],
                                              etasq_out[2,4],
                                              etasq_out[3,4],
-                                             etasq_out[4,4]),             	
+                                             etasq_out[4,4])),
+                                 
+                                 uCI_eta = unlist(c(etasq_out[1,5],
+                                             etasq_out[2,5],
+                                             etasq_out[3,5],
+                                             etasq_out[4,5])),             	
                                  
                                  term = c("geno", "trt", "batch", "gxe"))  
                       
@@ -349,13 +332,14 @@ height_ANOVA <- foreach(group.i=unique(all_data_final$SC_group_new), .errorhandl
                 }
 
 
-save(height_ANOVA, file = "anova_out.RData")
-# load(file = "~/Google Drive/PNAS_Becker_data_scripts/anova_out_March2021.RData")
+# save(height_ANOVA, file = "aov_out.RData")
+load(file = "output/aov_out.RData")
 
-aov_out_plot <- ggplot(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"],     
+
+aov_out_plot <- ggplot(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"],     
                        aes(x=i, y=partial_eta, group=term, color=as.factor(term))) +  
                 geom_line(size = 2) +
-                geom_ribbon(data=height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"], aes(ymin=lCI_eta, ymax=uCI_eta, colour = NA, fill=as.factor(height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"]$term)), alpha=0.3) +
+                geom_ribbon(data=height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"], aes(ymin=lCI_eta, ymax=uCI_eta, colour = NA, fill=as.factor(height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"]$term)), alpha=0.3) +
                 facet_wrap(~instar, ncol=1) +
                 theme(legend.position="none", 
                       rect = element_rect(fill = "transparent"),
@@ -384,7 +368,7 @@ aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manu
 # narrow sense heritability - O cluster (GCTA output)
 # control & treatment
 
-load(file="~/Google Drive/PNAS_Becker_data_scripts/O_h2_out_i_24NOV.RData")
+load(file="output/O_h2_out_i_14June.RData")
 
 # I1
 O_I1_h2_0 <- h2_estimate_I1_0_out[Source %in% c("V(G)/Vp")]
@@ -444,6 +428,8 @@ h2_instar_i_plot <- ggplot(data = O_h2_all,  aes(x=i, y=h2)) +
                     #xlim(10,600) + 
                     #ylim(0,0.6) +  
   
+                    geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
+  
                     facet_wrap(~instar, ncol=1) +
                     
                     theme(legend.position="none", 
@@ -476,6 +462,7 @@ shapiro.test(O_h2_all[i >= 100 & i <= 250][instar == "instar 2"][treatment == 'p
 
 # O_I1_plast
 wilcox_O_I1_plast <- wilcox.test(h2 ~ treatment, data =O_h2_all[i >= 100 & i <= 250][instar == "instar 1"]) 
+wilcox_O_I1_plast
 
 Zscore_O_I1_plast = qnorm(wilcox_O_I1_plast$p.value/2)
 Zscore_O_I1_plast
@@ -483,11 +470,12 @@ Zscore_O_I1_plast
 wilcox_effectsize_O_I1_plast <- wilcox_effsize(h2 ~ treatment, data =O_h2_all[i >= 100 & i <= 250][instar == "instar 1"])
 wilcox_effectsize_O_I1_plast
 
-# (Z = -1.253, r =  0.0722, p-value = 0.2101)
+# (Z = -5.071395, p-value = 3.949e-07)
 
 
 # O_I2_plast
 wilcox_O_I2_plast <- wilcox.test(h2 ~ treatment, data =O_h2_all[i >= 100 & i <= 250][instar == "instar 2"]) 
+wilcox_O_I2_plast
 
 Zscore_O_I2_plast = qnorm(wilcox_O_I2_plast$p.value/2)
 Zscore_O_I2_plast
@@ -495,7 +483,7 @@ Zscore_O_I2_plast
 wilcox_effectsize_O_I2_plast <- wilcox_effsize(h2 ~ treatment, data =O_h2_all[i >= 100 & i <= 250][instar == "instar 2"])
 wilcox_effectsize_O_I2_plast
 
-# (Z = -9.040, r =  0.520, p-value < 2.2e-16)
+# (Z = -10.40506, p-value < 2.2e-16)
 
 
 
@@ -503,28 +491,28 @@ wilcox_effectsize_O_I2_plast
 # this is the MCMCglmm output w/ batch as random effect
 # control & treatment
 
-load(file = "~/Google Drive/PNAS_Becker_data_scripts/H2_O_I1_batch.RData")
+load(file = "output/H2_O_I1_batch.RData")
 H2_O_I1 <- as.data.table(collected2)
 H2_O_I1[, i:= as.numeric(i)]
 H2_O_I1[, instar:= "instar 1"]
 H2_O_I1[, group:= "O"]
 setkey(H2_O_I1, group,instar,i)
 
-load(file = "~/Google Drive/PNAS_Becker_data_scripts/H2_O_I2_batch.RData")
+load(file = "output/H2_O_I2_batch.RData")
 H2_O_I2 <- as.data.table(collected2)
 H2_O_I2[, i:= as.numeric(i)]
 H2_O_I2[, instar:= "instar 2"]
 H2_O_I2[, group:= "O"]
 setkey(H2_O_I2, group,instar,i)
 
-load(file = "~/Google Drive/PNAS_Becker_data_scripts/H2_A_I1_batch.RData")
+load(file = "output/H2_A_I1_batch.RData")
 H2_A_I1 <- as.data.table(collected2)
 H2_A_I1[, i:= as.numeric(i)]
 H2_A_I1[, instar:= "instar 1"]
 H2_A_I1[, group:= "A"]
 setkey(H2_A_I1, group,instar,i)
 
-load(file = "~/Google Drive/PNAS_Becker_data_scripts/H2_A_I2_batch.RData")
+load(file = "output/H2_A_I2_batch.RData")
 H2_A_I2 <- as.data.table(collected2)
 H2_A_I2[, i:= as.numeric(i)]
 H2_A_I2[, instar:= "instar 2"]
@@ -537,17 +525,17 @@ AandO_H2_all <- rbind(H2_O_I1,
                       H2_A_I2)
 
 
-H2_instar_i_plot <- ggplot(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"]) +   
+H2_instar_i_plot <- ggplot(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"]) +   
   
                     geom_rect(aes(xmin = 10, xmax = 100, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
                     geom_rect(aes(xmin = 101, xmax = 250, ymin = -Inf, ymax = Inf),fill = "#E8E8E8", colour="#E8E8E8", alpha=0.1) + 
                     geom_rect(aes(xmin = 251, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
   
-                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'T'][group == "O"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#FF0000", alpha = 0.3)+
-                    geom_line(data=AandO_H2_all[i <= 600][label == 'T'][group == "O"], aes(x=i, y=stuff.mean), size = 1, colour = "#FF0000") + 
+                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'T'][group == "A"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#FF0000", alpha = 0.3)+
+                    geom_line(data=AandO_H2_all[i <= 600][label == 'T'][group == "A"], aes(x=i, y=stuff.mean), size = 1, colour = "#FF0000") + 
                     
-                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'C'][group == "O"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#000000", alpha = 0.3)+
-                    geom_line(data=AandO_H2_all[i <= 600][label == 'C'][group == "O"], aes(x=i, y=stuff.mean), size = 1, colour = "#000000") + 
+                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'C'][group == "A"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#000000", alpha = 0.3)+
+                    geom_line(data=AandO_H2_all[i <= 600][label == 'C'][group == "A"], aes(x=i, y=stuff.mean), size = 1, colour = "#000000") + 
   
                     geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
                     
@@ -575,7 +563,6 @@ H2_instar_i_plot <- ggplot(data = AandO_H2_all[i <= 600][label %in% c("C","T")][
                           panel.spacing.y = unit(6, "mm")) 
   
 H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) 
-
 
 
 shapiro.test(AandO_H2_all[i >= 100 & i <= 300][instar == "instar 1"][group == "O"][label == 'C']$h2)
@@ -615,17 +602,17 @@ wilcox_effectsize_O_I2_plast
 
 aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6))
 
-H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6))
+H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6))
 
-h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6))
+# h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6))
 
 
-patchwork_plots_induction3 <- aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6)) + 
-  H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6)) +
-  h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6)) +
-  # plot_spacer() +
+patchwork_plots_induction2 <- aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6)) + 
+  H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6)) +
+  # h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6)) +
+  plot_spacer() +
   plot_layout(ncol=3, widths = c(1,1,1))
 
-patchwork_plots_induction3
+patchwork_plots_induction2
 
 
