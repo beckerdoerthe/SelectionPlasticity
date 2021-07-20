@@ -108,11 +108,11 @@ all_data_final[, max_height_new := max(height, na.rm=T), by=c('Geno','instar')]
 
 setkey(all_data_final, cloneid_geno, i) 
 
-save(all_data_final, file = "all_data_final.RData")
+save(all_data_final, file = "data/all_data_final.RData")
 
 
 
-# Supplemental Table - clone IDs w/ pond and season info
+# Supplemental Table 2 - clone IDs w/ pond and season info
 SupplTab <- all_data_final[i == 150][, list(height = mean(height)), list(cloneid_geno, pond, season, SC_group)]
 SupplTab[, season_new := ifelse(season == "spring_1_2017", "Spring 2017", 
                            ifelse(season == "spring_2_2017", "Spring 2017", 
