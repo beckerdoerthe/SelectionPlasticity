@@ -41,15 +41,6 @@ ag.line_plot <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"],  a
                     geom_line(data = all_data_final.ag[treatment == 0][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1.5, colour = "black") + 
                     geom_line(data = all_data_final.ag[treatment == 0.5][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1.5, colour = "red") + 
                     
-  geom_vline(xintercept = 100, linetype="dashed", color = "black", size=1) +
-  geom_vline(xintercept = 150, linetype="dashed", color = "black", size=1) +
-  geom_vline(xintercept = 200, linetype="dashed", color = "black", size=1) +
-  geom_vline(xintercept = 250, linetype="dashed", color = "black", size=1) +
-  geom_vline(xintercept = 300, linetype="dashed", color = "black", size=1) +
-  geom_vline(xintercept = 350, linetype="dashed", color = "black", size=1) +
-  geom_vline(xintercept = 400, linetype="dashed", color = "black", size=1) +
-  geom_vline(xintercept = 600, linetype="dashed", color = "black", size=1) +
-  
                     ylim(0, 0.28) +
                     
                     facet_wrap(~instar_new, ncol=1) +

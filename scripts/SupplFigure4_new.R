@@ -204,6 +204,22 @@ MT_body_14 <- modularity.test(gpa_trans_adj$coords,
 save(MT_body_14, file = 'output/Mod14_MT_O_I2.RData')
 
 
+load(file = 'output/Mod1_MT_O_I2.RData')
+load(file = 'output/Mod2_MT_O_I2.RData')
+load(file = 'output/Mod3_MT_O_I2.RData')
+load(file = 'output/Mod4_MT_O_I2.RData')
+load(file = 'output/Mod5_MT_O_I2.RData')
+load(file = 'output/Mod6_MT_O_I2.RData')
+load(file = 'output/Mod7_MT_O_I2.RData')
+load(file = 'output/Mod8_MT_O_I2.RData')
+load(file = 'output/Mod9_MT_O_I2.RData')
+load(file = 'output/Mod10_MT_O_I2.RData')
+load(file = 'output/Mod11_MT_O_I2.RData')
+load(file = 'output/Mod12_MT_O_I2.RData')
+load(file = 'output/Mod13_MT_O_I2.RData')
+load(file = 'output/Mod14_MT_O_I2.RData')
+
+
 #compare models 1-8
 model_1.14 <- compare.CR(MT_body_1,
                         MT_body_2,
