@@ -112,6 +112,16 @@ save(all_data_final, file = "data/all_data_final.RData")
 
 
 
+load(file = "data/all_data_final.RData")
+
+BatchInfo <- as.data.table(all_data_final[i == 150][instar == 1][, list(height = mean(height)), list(cloneid_geno, batch, SC_group, treatment)])
+setkey(BatchInfo, batch, SC_group, treatment, cloneid_geno)
+BatchInfo
+
+write.csv(BatchInfo, file = "BatchInfo.csv", row.names=FALSE)
+
+
+
 # Supplemental Table 2 - clone IDs w/ pond and season info
 SupplTab <- all_data_final[i == 150][, list(height = mean(height)), list(cloneid_geno, pond, season, SC_group)]
 SupplTab[, season_new := ifelse(season == "spring_1_2017", "Spring 2017", 
@@ -122,4 +132,66 @@ SupplTab[, season_new := ifelse(season == "spring_1_2017", "Spring 2017",
 SupplTab_final <- SupplTab[, -c("height","season")]
 setnames(SupplTab_final, c("cloneid_geno","pond","SC_group","season_new"), c("clone ID", "pond", "cluster", "season"))
 write.csv(SupplTab_final, file="SupplementTable1.csv", row.names=FALSE)
+
+
+# Supplemental Figure 3 - batch proportions re A vs O and Ctrl vs Predation
+batch_AvsO_CtrlvsTrt <- as.data.table(read.delim(file= "batch_info_graph.txt", header = TRUE, sep = "\t"))
+
+
+Batch_OvsA <- ggplot(batch_AvsO_CtrlvsTrt, aes(fill=as.factor(Cluster), y=NoClonesTested, x=Batch)) + 
+                      geom_bar(position="fill", stat="identity") + 
+                      theme(legend.position="bottom", 
+                            rect = element_rect(fill = "transparent"),
+                            panel.grid.major = element_line(colour = "grey70", size=0.25),
+                            panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                            panel.background = element_rect(fill = "transparent",colour = NA),
+                            plot.background = element_rect(fill = "transparent",colour = NA), 
+                            #strip.text.x = element_blank(),
+                            #axis.text.x = element_blank(), 
+                            #axis.title.x = element_blank(), 
+                            #axis.title.y = element_blank(),
+                            axis.line = element_line(size = 1),
+                            axis.title.x = element_text(size=15,family='Arial'), 
+                            axis.title.y = element_text(size=15, family='Arial'),
+                            axis.text = element_text(size=15, family='Arial'),
+                            strip.text.x = element_text(size = 15, color = "black"),
+                            strip.text.y = element_text(size = 15, color = "black"),
+                            panel.spacing.x = unit(6, "mm"),
+                            panel.spacing.y = unit(6, "mm")) 
+
+Batch_OvsA + labs(x = "batch", y = paste("proportion")) + scale_fill_manual(values=c("#AFE1AF","#40826D"))
+
+
+Batch_CtrlvsPred <- ggplot(batch_AvsO_CtrlvsTrt, aes(fill=Treatment, y=NoClonesTested, x=Batch)) + 
+                            geom_bar(position="fill", stat="identity") + 
+                            theme(legend.position="bottom", 
+                                  rect = element_rect(fill = "transparent"),
+                                  panel.grid.major = element_line(colour = "grey70", size=0.25),
+                                  panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                                  panel.background = element_rect(fill = "transparent",colour = NA),
+                                  plot.background = element_rect(fill = "transparent",colour = NA), 
+                                  #strip.text.x = element_blank(),
+                                  #axis.text.x = element_blank(), 
+                                  #axis.title.x = element_blank(), 
+                                  #axis.title.y = element_blank(),
+                                  axis.line = element_line(size = 1),
+                                  axis.title.x = element_text(size=15,family='Arial'), 
+                                  axis.title.y = element_text(size=15, family='Arial'),
+                                  axis.text = element_text(size=15, family='Arial'),
+                                  strip.text.x = element_text(size = 15, color = "black"),
+                                  strip.text.y = element_text(size = 15, color = "black"),
+                                  panel.spacing.x = unit(6, "mm"),
+                                  panel.spacing.y = unit(6, "mm")) 
+
+Batch_CtrlvsPred + labs(x = "batch", y = paste("proportion")) + scale_fill_manual(values=c("#000000","#FF0000"))
+
+
+
+( Batch_OvsA + labs(x = "batch", y = paste("proportion")) + scale_fill_manual(values=c("#AFE1AF","#40826D")) ) +
+( Batch_CtrlvsPred + labs(x = "batch", y = paste("proportion")) + scale_fill_manual(values=c("#000000","#FF0000")) ) + 
+  plot_spacer() + 
+  plot_spacer() + 
+  plot_layout(ncol=4, widths = c(1,1,1,1))
+
+
 

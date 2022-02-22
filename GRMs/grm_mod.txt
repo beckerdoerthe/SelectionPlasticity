@@ -1,0 +1,3103 @@
+## GCTA 
+# 25 May 2020 - modified 22 June 2020; 06 August; 20 October
+
+
+rm(list=ls()) 
+
+#################
+### libraries ###
+#################
+library(ggplot2)
+library(cowplot)
+library(viridis)
+library(data.table)
+library(geomorph)
+library(reshape2)
+library(dplyr)
+library(tidyverse)
+library(foreach)
+library(abind)
+library(doMC)
+registerDoMC(20)
+
+library(SeqArray)
+library(SNPRelate)
+library(snpReady)
+
+
+## module load gcc/7.1.0 openmpi/3.1.4 R/3.5.3
+#load(file = "/scratch/db4ua/GRM_May2020/shape_use.ag_filtered_final_02June2020.Rdata")  
+
+
+##########################
+### prepare pheno data ###		
+##########################
+
+## export data for vcf prep 
+
+load(file = "/mnt/pricey_4/doerthe/GRM_May2020/shape_use.ag_filtered_final_02June2020.Rdata")  
+# final_data
+
+setkey(final_data, cloneid_geno, i) 
+
+# reduce control data (choose random 4 Geno IDs for each treatment group in all three ctrl clones)
+set.seed(123)
+random_ctrl_O <- final_data[group == 'ctrl_O'][, c('cloneid_geno','Geno','treatment')] %>% group_by(cloneid_geno, treatment) %>% sample_n(4)
+ctrlO_clones <- final_data[Geno %in% random_ctrl_O$Geno]
+
+set.seed(123)
+random_ctrl_A <- final_data[group == 'ctrl_A'][, c('cloneid_geno','Geno','treatment')] %>% group_by(cloneid_geno, treatment) %>% sample_n(4)
+ctrlA_clones <- final_data[Geno %in% random_ctrl_A$Geno]
+
+O_clones <- final_data[group == "O"]
+A_clones <- final_data[group == "A"]
+
+all_data_Os <- rbind(O_clones,ctrlO_clones)
+all_data_As <- rbind(A_clones,ctrlA_clones)
+
+all_data <- rbind(O_clones,ctrlO_clones,A_clones,ctrlA_clones)
+
+
+# find O clones with highest read depth per cluster
+all_data_Os[,revorder:=frankv(medrd,order=-1,ties.method = "first")]  
+setkey(all_data_Os, revorder, Geno, i) 
+tmp_medrd_Os <- unique(all_data_Os[i==150][,c('cloneid_geno', 'SC_unique', 'medrd')] %>% group_by(SC_unique) %>% slice(1))
+medrd_Os <- as.data.table(tmp_medrd_Os[,'cloneid_geno'])
+
+all_data_O.medrd <- all_data[cloneid_geno %in% medrd_Os$cloneid_geno]
+
+# exclude O clones with less than 1 sample per treatment&instar group 
+table(all_data_O.medrd$SC_unique, all_data_O.medrd$treatment)
+
+# exclude missing data in ctrl and treatment (CLUNKY CODE, but works!)
+tbl_all_data_O <- as.data.table(table(all_data_O.medrd$SC_unique, all_data_O.medrd$treatment, all_data_O.medrd$instar))
+setnames(tbl_all_data_O, c('V1','V2','V3','N'), c('SC','treatment','instar','count'))
+tbl_all_data_O_wide <- as.data.table(dcast(tbl_all_data_O, SC ~ c(paste0("treatment_", treatment, "_instar_", instar)), fun=mean, value.var='count'))
+
+data_O_wide_use <- all_data_O.medrd[SC_unique %in% tbl_all_data_O_wide[treatment_0.5_instar_1 >= 641 & treatment_0.5_instar_2 >= 641 & treatment_0_instar_1 >= 641 & treatment_0_instar_2 >= 641]$SC]  
+Os <- unique(levels(as.factor(data_O_wide_use$cloneid_geno)))  ### 51 unique clones
+
+
+# exclude A clones with less than 1 sample per treatment&instar group
+table(all_data_As$cloneid_geno, all_data_As$treatment, all_data_As$instar)
+
+# exclude missing data in ctrl and treatment (CLUNKY CODE, but works!)
+tbl_all_data_A <- as.data.table(table(all_data_As$cloneid_geno, all_data_As$treatment, all_data_As$instar))
+setnames(tbl_all_data_A, c('V1','V2','V3','N'), c('cloneid_geno','treatment','instar','count'))
+tbl_all_data_A_wide <- as.data.table(dcast(tbl_all_data_A, cloneid_geno ~ c(paste0("treatment_", treatment, "_instar_", instar)), fun=mean, value.var='count'))
+
+data_A_wide_use <- all_data_As[cloneid_geno %in% tbl_all_data_A_wide[treatment_0.5_instar_1 >= 641 & treatment_0.5_instar_2 >= 641 & treatment_0_instar_1 >= 641 & treatment_0_instar_2 >= 641]$cloneid_geno]
+
+
+# find A clones with highest read depth 
+data_A_wide_use[,revorder:=frankv(medrd,order=-1,ties.method = "first")]  
+setkey(data_A_wide_use, revorder, Geno, i) 
+tmp_medrd_As <- unique(data_A_wide_use[i==150][,c('cloneid_geno', 'SC_unique', 'medrd')]$cloneid_geno)
+medrd_As <- tmp_medrd_As[1:51]
+
+all_data_final <- all_data[cloneid_geno %in% Os | cloneid_geno %in% medrd_As]
+all_data_final[, max_height_new := max(height, na.rm=T), by=c('Geno','instar')]
+
+
+
+# O.clones
+data_use_O.medrd_I1_0 <- all_data_final[group %in% c('O','ctrl_O')][i == 150][instar == 1][treatment == 0]  # 51 clones, #202 samples (i.e. barcode level)
+save(data_use_O.medrd_I1_0, file="data_use_O.medrd_I1_0.RData")
+
+data_use_O.medrd_I1_05 <- all_data_final[group %in% c('O','ctrl_O')][i == 150][instar == 1][treatment == 0.5]  # 51 clones, #226 samples (i.e. barcode level)
+save(data_use_O.medrd_I1_05, file="data_use_O.medrd_I1_05.RData")
+
+data_use_O.medrd_I2_0 <- all_data_final[group %in% c('O','ctrl_O')][i == 150][instar == 2][treatment == 0]  # 51 clones, #200 samples (i.e. barcode level)
+save(data_use_O.medrd_I2_0, file="data_use_O.medrd_I2_0.RData")
+
+data_use_O.medrd_I2_05 <- all_data_final[group %in% c('O','ctrl_O')][i == 150][instar == 2][treatment == 0.5]  # 51 clones, #191 samples (i.e. barcode level)
+save(data_use_O.medrd_I2_05, file="data_use_O.medrd_I2_05.RData")
+
+
+
+# A.clones
+pheno_data_use_A <- all_data_final[group %in% c('A','ctrl_A')][i == 150]
+SC_As <- unique(pheno_data_use_A$cloneid_geno)
+SC_As <- as.data.table(SC_As)
+setnames(SC_As, 'SC_As', 'cloneid_geno')
+SC_As[, SC_adj := paste0('A', .I)]
+
+pheno_data_use_A_use <- merge(pheno_data_use_A, SC_As, by='cloneid_geno')
+
+
+data_use_A.medrd_I1_0 <- pheno_data_use_A_use[instar == 1][treatment == 0]  # 51 clones, #207 samples (i.e. barcode level)
+save(data_use_A.medrd_I1_0, file="data_use_A.medrd_I1_0.RData")
+
+data_use_A.medrd_I1_05 <- pheno_data_use_A_use[instar == 1][treatment == 0.5]  # 51 clones, #220 samples (i.e. barcode level)
+save(data_use_A.medrd_I1_05, file="data_use_A.medrd_I1_05.RData")
+
+data_use_A.medrd_I2_0 <- pheno_data_use_A_use[instar == 2][treatment == 0]  # 51 clones, #197 samples (i.e. barcode level)
+save(data_use_A.medrd_I2_0, file="data_use_A.medrd_I2_0.RData")
+
+data_use_A.medrd_I2_05 <- pheno_data_use_A_use[instar == 2][treatment == 0.5]  # 51 clones, #201 samples (i.e. barcode level)
+save(data_use_A.medrd_I2_05, file="data_use_A.medrd_I2_05.RData")
+
+
+
+########################
+### perm input file  ###
+########################
+
+#perm=c(1:100)
+#seed <- floor(runif(100, 0, 1e6)) # modify re number of boots run
+
+#perm_input <- as.data.table(cbind(perm,seed))
+
+#write.table(perm_input, file="/mnt/pricey_4/doerthe/GRM_May2020/perm_input.txt", row.names=F, col.names=F)
+
+
+
+################################################
+## generate phenotype and covfiles for each i ##
+################################################
+
+## raw Os
+all_data_final
+setkey(all_data_final, GenoPLUS, i)
+
+
+pheno_data_use_O_I1_0 <- all_data_final[group %in% c('O','ctrl_O')][instar == 1][treatment == 0]
+pheno_data_use_O_I1_0[, id := GenoPLUS]
+
+pheno_data_use_O_I1_05 <- all_data_final[group %in% c('O','ctrl_O')][instar == 1][treatment == 0.5]
+pheno_data_use_O_I1_05[, id := GenoPLUS]
+
+pheno_data_use_O_I2_0 <- all_data_final[group %in% c('O','ctrl_O')][instar == 2][treatment == 0]
+pheno_data_use_O_I2_0[, id := GenoPLUS]
+
+pheno_data_use_O_I2_05 <- all_data_final[group %in% c('O','ctrl_O')][instar == 2][treatment == 0.5]
+pheno_data_use_O_I2_05[, id := GenoPLUS]
+
+
+foreach(i.i = unique(pheno_data_use_O_I1_05$i), .errorhandling="remove", .combine="rbind") %do% {
+			
+	phenos <- pheno_data_use_O_I1_05[i == i.i]
+						
+	write.table(phenos[,c("id", "id", "height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_05_plink_phenos_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_05_cov_gcta_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	}
+
+
+## raw As
+all_data_final
+setkey(all_data_final, GenoPLUS, i)
+
+
+pheno_data_use_A_I1_0 <- all_data_final[group %in% c('A','ctrl_A')][instar == 1][treatment == 0]
+pheno_data_use_A_I1_0[, id := GenoPLUS]
+
+pheno_data_use_A_I1_05 <- all_data_final[group %in% c('A','ctrl_A')][instar == 1][treatment == 0.5]
+pheno_data_use_A_I1_05[, id := GenoPLUS]
+
+pheno_data_use_A_I2_0 <- all_data_final[group %in% c('A','ctrl_A')][instar == 2][treatment == 0]
+pheno_data_use_A_I2_0[, id := GenoPLUS]
+
+pheno_data_use_A_I2_05 <- all_data_final[group %in% c('A','ctrl_A')][instar == 2][treatment == 0.5]
+pheno_data_use_A_I2_05[, id := GenoPLUS]
+
+
+foreach(i.i = unique(pheno_data_use_A_I2_0$i), .errorhandling="remove", .combine="rbind") %do% {
+			
+	phenos <- pheno_data_use_A_I2_0[i == i.i]
+						
+	write.table(phenos[,c("id", "id", "height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_plink_phenos_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_cov_gcta_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	}
+
+
+
+################################################
+## generate phenotype and covfiles for traits ##
+################################################
+
+## Os
+phenos_traits <- pheno_data_use_O_I1_0[i == 150]
+phenos_traits <- pheno_data_use_O_I1_05[i == 150]
+phenos_traits <- pheno_data_use_O_I2_0[i == 150]
+phenos_traits <- pheno_data_use_O_I2_05[i == 150]
+				
+write.table(phenos_traits[,c("id", "id", "length")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_traits[,c("id", "id", "max_height_new")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_05_plink_max_height.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_traits[,c("id", "id", "eye")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_plink_eye.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_traits[,c("id", "id", "nteeth")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_plink_nteeth.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+write.table(phenos_traits[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+## As
+phenos_traits <- pheno_data_use_A_I1_0[i == 150]
+phenos_traits <- pheno_data_use_A_I1_05[i == 150]
+phenos_traits <- pheno_data_use_A_I2_0[i == 150]
+phenos_traits <- pheno_data_use_A_I2_05[i == 150]
+					
+write.table(phenos_traits[,c("id", "id", "length")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_traits[,c("id", "id", "max_height_new")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_05_plink_max_height.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_traits[,c("id", "id", "eye")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_plink_eye.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_traits[,c("id", "id", "nteeth")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_plink_nteeth.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+write.table(phenos_traits[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+#############################################
+## generate phenotype and covfiles for PCs ##
+#############################################
+
+## Os
+load(file='/mnt/pricey_4/doerthe/GEOMORPH_out/AUG2020/PCA.scores_I2.raw.RData')  # "PCAscores.raw" (i.e. non-fitted, raw data - batch as COV!)
+
+I2_raw <- PCAscores.raw
+I2_raw_use <- as.data.table(I2_raw)
+I2_raw_use[, Geno := rownames(I2_raw)]
+I2_raw_use[, group := 'I2_raw']
+
+setkey(I2_raw_use, Geno)
+
+I2_raw_use_plus <- merge(I2_raw_use, all_data_final[i==150][instar == 2][, c('Geno','GenoPLUS','i','instar','batch','treatment')], by='Geno', all.x=T)
+I2_raw_use_plus[, id := GenoPLUS]
+
+
+phenos_PCs <- I2_raw_use_plus[treatment == 0]
+
+#PC1
+write.table(phenos_PCs[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC1_I2_0_raw_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_PCs[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC1_I2_0_raw_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC2
+write.table(phenos_PCs[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC2_I2_0_raw_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_PCs[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC2_I2_0_raw_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC3
+write.table(phenos_PCs[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC3_I2_0_raw_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_PCs[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC3_I2_0_raw_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+
+## As
+load(file='/mnt/pricey_4/doerthe/GEOMORPH_out/AUG2020/PCA.scores_I2.raw.RData')  # "PCAscores.raw" (i.e. non-fitted, raw data - batch as COV!)
+
+I2_raw <- PCAscores.raw
+I2_raw_use <- as.data.table(I2_raw)
+I2_raw_use[, Geno := rownames(I2_raw)]
+I2_raw_use[, group := 'I2_raw']
+
+setkey(I2_raw_use, Geno)
+
+I2_raw_use_plus <- merge(I2_raw_use, all_data_final[i==150][instar == 2][, c('Geno','GenoPLUS','i','instar','batch','treatment')], by='Geno', all.x=T)
+I2_raw_use_plus[, id := GenoPLUS]
+
+
+phenos_PCs <- I2_raw_use_plus[treatment == 0]
+
+#PC1
+write.table(phenos_PCs[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC1_I2_0_raw_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_PCs[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC1_I2_0_raw_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC2
+write.table(phenos_PCs[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC2_I2_0_raw_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_PCs[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC2_I2_0_raw_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC3
+write.table(phenos_PCs[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC3_I2_0_raw_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos_PCs[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC3_I2_0_raw_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+
+######################################
+## calculate heritability estimates ##
+######################################
+
+
+## Os
+# along i; batch as covariate & MAF 0.05
+
+for i in {10..650}; do
+echo $i
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_plink_phenos_i$i.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_cov_gcta_i$i.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_0_COVbatch_MAF_gcta_i$i \
+  --thread-num 10
+
+done
+
+
+
+# traits; batch as covariate & MAF 0.05
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_plink_max_height.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_0_cov_gcta.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_0_COVbatch_MAF_gcta_max_height \
+  --thread-num 10
+
+
+
+
+# PCs; batch as covariate & MAF 0.05
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC3_I2_0_raw_plink_phenos.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/PC3_I2_0_raw_cov_gcta.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC3_I2_0_COVbatch_MAF_gcta \
+  --thread-num 10
+
+
+
+## As
+# along i; batch as covariate & MAF 0.05
+
+for i in {10..650}; do
+echo $i
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/A_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_plink_phenos_i$i.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_cov_gcta_i$i.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_0_COVbatch_MAF_gcta_i$i \
+  --thread-num 10
+
+done
+
+
+# traits; batch as covariate & MAF 0.05
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/A_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_plink_max_height.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/I2_0_cov_gcta.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_0_COVbatch_MAF_gcta_max_height \
+  --thread-num 10
+
+
+# PCs; batch as covariate & MAF 0.05
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/A_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC3_I2_0_raw_plink_phenos.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_data_cov/PC3_I2_0_raw_cov_gcta.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC3_I2_0_COVbatch_MAF_gcta \
+  --thread-num 10
+
+
+
+
+## exctract heritability 
+
+rm(list=ls()) 
+
+library(ggplot2)
+library(cowplot)
+library(viridis)
+library(plotrix)
+library(data.table)
+library(reshape2)
+library(dplyr)
+library(tidyverse)
+library(foreach)
+library(abind)
+library(doMC)
+registerDoMC(20)
+
+
+# h2 estimates
+# along i
+# Os
+
+# I1_0
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern=paste0("I1_0_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern="I2_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I1_0 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I1_0_out <- rbindlist(h2_estimate_I1_0)
+h2_estimate_I1_0_out[, group := "I1_0"]
+
+
+# I1_05
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern=paste0("I1_05_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern="I2_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I1_05 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I1_05_out <- rbindlist(h2_estimate_I1_05)
+h2_estimate_I1_05_out[, group := "I1_05"]
+
+
+# I2_0
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern=paste0("I2_0_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern="I2_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I2_0 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I2_0_out <- rbindlist(h2_estimate_I2_0)
+h2_estimate_I2_0_out[, group := "I2_0"]
+
+
+# I2_05
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern=paste0("I2_05_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern="I2_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I2_05 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I2_05_out <- rbindlist(h2_estimate_I2_05)
+h2_estimate_I2_05_out[, group := "I2_05"]
+
+
+save(h2_estimate_I1_0_out,h2_estimate_I1_05_out,h2_estimate_I2_0_out,h2_estimate_I2_05_out, file='/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_h2_out_i_24NOV.RData')
+
+
+
+# As
+
+# I1_0
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern=paste0("I1_0_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern="I1_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I1_0 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I1_0_out <- rbindlist(h2_estimate_I1_0)
+h2_estimate_I1_0_out[, group := "I1_0"]
+
+
+# I1_05
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern=paste0("I1_05_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern="I1_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I1_05 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I1_05_out <- rbindlist(h2_estimate_I1_05)
+h2_estimate_I1_05_out[, group := "I1_05"]
+
+
+# I2_0
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern=paste0("I2_0_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern="I2_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I2_0 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I2_0_out <- rbindlist(h2_estimate_I2_0)
+h2_estimate_I2_0_out[, group := "I2_0"]
+
+
+# I2_05
+files_path_sites_h2 <- unlist(foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern=paste0("I2_05_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)})
+#files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", pattern="I2_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I2_05 <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I2_05_out <- rbindlist(h2_estimate_I2_05)
+h2_estimate_I2_05_out[, group := "I2_05"]
+
+
+save(h2_estimate_I1_0_out,h2_estimate_I1_05_out,h2_estimate_I2_0_out,h2_estimate_I2_05_out, file='/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/A_h2_out_i_24NOV.RData')
+
+
+
+# trait and PC data
+
+# Os
+
+# O_length
+O_I1_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_length <- as.data.table(O_I1_0_length)
+O_I1_0_length[,group := 'I1_0']
+O_I1_0_length[,term := 'length']
+
+O_I1_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_length <- as.data.table(O_I1_05_length)
+O_I1_05_length[,group := 'I1_05']
+O_I1_05_length[,term := 'length']
+
+O_I2_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_length <- as.data.table(O_I2_0_length)
+O_I2_0_length[,group := 'I2_0']
+O_I2_0_length[,term := 'length']
+
+O_I2_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_length <- as.data.table(O_I2_05_length)
+O_I2_05_length[,group := 'I2_05']
+O_I2_05_length[,term := 'length']
+
+
+# O_eye
+O_I1_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_eye <- as.data.table(O_I1_0_eye)
+O_I1_0_eye[,group := 'I1_0']
+O_I1_0_eye[,term := 'eye']
+
+O_I1_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_eye <- as.data.table(O_I1_05_eye)
+O_I1_05_eye[,group := 'I1_05']
+O_I1_05_eye[,term := 'eye']
+
+O_I2_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_eye <- as.data.table(O_I2_0_eye)
+O_I2_0_eye[,group := 'I2_0']
+O_I2_0_eye[,term := 'eye']
+
+O_I2_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_eye <- as.data.table(O_I2_05_eye)
+O_I2_05_eye[,group := 'I2_05']
+O_I2_05_eye[,term := 'eye']
+
+
+# O_max_height
+O_I1_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_max_height <- as.data.table(O_I1_0_max_height)
+O_I1_0_max_height[,group := 'I1_0']
+O_I1_0_max_height[,term := 'max_height']
+
+O_I1_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_max_height <- as.data.table(O_I1_05_max_height)
+O_I1_05_max_height[,group := 'I1_05']
+O_I1_05_max_height[,term := 'max_height']
+
+O_I2_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_max_height <- as.data.table(O_I2_0_max_height)
+O_I2_0_max_height[,group := 'I2_0']
+O_I2_0_max_height[,term := 'max_height']
+
+O_I2_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_max_height <- as.data.table(O_I2_05_max_height)
+O_I2_05_max_height[,group := 'I2_05']
+O_I2_05_max_height[,term := 'max_height']
+
+
+# O_nteeth
+O_I1_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_nteeth <- as.data.table(O_I1_0_nteeth)
+O_I1_0_nteeth[,group := 'I1_0']
+O_I1_0_nteeth[,term := 'nteeth']
+
+O_I1_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_nteeth <- as.data.table(O_I1_05_nteeth)
+O_I1_05_nteeth[,group := 'I1_05']
+O_I1_05_nteeth[,term := 'nteeth']
+
+# h2 estimate could not be calculated due to all data == 0
+#O_I2_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+#O_I2_0_nteeth <- as.data.table(O_I2_0_nteeth)
+#O_I2_0_nteeth[,group := 'I2_0']
+#O_I2_0_nteeth[,term := 'nteeth']
+
+O_I2_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I2_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_nteeth <- as.data.table(O_I2_05_nteeth)
+O_I2_05_nteeth[,group := 'I2_05']
+O_I2_05_nteeth[,term := 'nteeth']
+
+
+
+# PC1
+O_I1_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC1_I1_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_gcta_PC1 <- as.data.table(O_I1_0_gcta_PC1)
+O_I1_0_gcta_PC1[,group := 'I1_0']
+O_I1_0_gcta_PC1[,term := 'PC1']
+
+O_I1_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC1_I1_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_gcta_PC1 <- as.data.table(O_I1_05_gcta_PC1)
+O_I1_05_gcta_PC1[,group := 'I1_05']
+O_I1_05_gcta_PC1[,term := 'PC1']
+
+O_I2_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC1_I2_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_gcta_PC1 <- as.data.table(O_I2_0_gcta_PC1)
+O_I2_0_gcta_PC1[,group := 'I2_0']
+O_I2_0_gcta_PC1[,term := 'PC1']
+
+O_I2_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC1_I2_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_gcta_PC1 <- as.data.table(O_I2_05_gcta_PC1)
+O_I2_05_gcta_PC1[,group := 'I2_05']
+O_I2_05_gcta_PC1[,term := 'PC1']
+
+
+# PC2
+O_I1_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC2_I1_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_gcta_PC2 <- as.data.table(O_I1_0_gcta_PC2)
+O_I1_0_gcta_PC2[,group := 'I1_0']
+O_I1_0_gcta_PC2[,term := 'PC2']
+
+O_I1_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC2_I1_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_gcta_PC2 <- as.data.table(O_I1_05_gcta_PC2)
+O_I1_05_gcta_PC2[,group := 'I1_05']
+O_I1_05_gcta_PC2[,term := 'PC2']
+
+O_I2_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC2_I2_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_gcta_PC2 <- as.data.table(O_I2_0_gcta_PC2)
+O_I2_0_gcta_PC2[,group := 'I2_0']
+O_I2_0_gcta_PC2[,term := 'PC2']
+
+O_I2_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC2_I2_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_gcta_PC2 <- as.data.table(O_I2_05_gcta_PC2)
+O_I2_05_gcta_PC2[,group := 'I2_05']
+O_I2_05_gcta_PC2[,term := 'PC2']
+
+
+# PC3
+O_I1_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC3_I1_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_gcta_PC3 <- as.data.table(O_I1_0_gcta_PC3)
+O_I1_0_gcta_PC3[,group := 'I1_0']
+O_I1_0_gcta_PC3[,term := 'PC3']
+
+O_I1_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC3_I1_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_gcta_PC3 <- as.data.table(O_I1_05_gcta_PC3)
+O_I1_05_gcta_PC3[,group := 'I1_05']
+O_I1_05_gcta_PC3[,term := 'PC3']
+
+O_I2_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC3_I2_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_gcta_PC3 <- as.data.table(O_I2_0_gcta_PC3)
+O_I2_0_gcta_PC3[,group := 'I2_0']
+O_I2_0_gcta_PC3[,term := 'PC3']
+
+O_I2_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/PC3_I2_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_gcta_PC3 <- as.data.table(O_I2_05_gcta_PC3)
+O_I2_05_gcta_PC3[,group := 'I2_05']
+O_I2_05_gcta_PC3[,term := 'PC3']
+
+
+
+h2_out_traitsPCs <- rbind(O_I1_0_length,O_I1_05_length,O_I2_0_length,O_I2_05_length,
+						  O_I1_0_eye,O_I1_05_eye,O_I2_0_eye,O_I2_05_eye,
+						  O_I1_0_nteeth,O_I1_05_nteeth,O_I2_05_nteeth,
+						  O_I1_0_max_height,O_I1_05_max_height,O_I2_0_max_height,O_I2_05_max_height,
+						  O_I1_0_gcta_PC1,O_I1_05_gcta_PC1,O_I2_0_gcta_PC1,O_I2_05_gcta_PC1,
+						  O_I1_0_gcta_PC2,O_I1_05_gcta_PC2,O_I2_0_gcta_PC2,O_I2_05_gcta_PC2,
+						  O_I1_0_gcta_PC3,O_I1_05_gcta_PC3,O_I2_0_gcta_PC3,O_I2_05_gcta_PC3)
+
+h2_out_traitsPCs[, perm := 0]
+
+save(h2_out_traitsPCs, file = '/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_h2_out_traitsPCs_24NOV.RData')
+
+
+
+h2_out_traitsPCs.ag <- h2_out_traitsPCs[,list(Variance=mean(Variance, na.rm=T),
+								Var.lci=quantile(Variance, na.rm=T, .025),Var.uci=quantile(Variance, na.rm=T, .975)),
+							list(Source, group, term, SE, perm=(perm>0))]
+
+h2_out_traitsPCs.ag_use <- h2_out_traitsPCs.ag[Source == "V(G)/Vp"]
+
+h2_out_traitsPCs.ag_use[, SEmin := Variance - SE]
+h2_out_traitsPCs.ag_use[, SEmax := Variance + SE]
+
+
+
+# As
+
+# A_length
+A_I1_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_length <- as.data.table(A_I1_0_length)
+A_I1_0_length[,group := 'I1_0']
+A_I1_0_length[,term := 'length']
+
+A_I1_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_length <- as.data.table(A_I1_05_length)
+A_I1_05_length[,group := 'I1_05']
+A_I1_05_length[,term := 'length']
+
+A_I2_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_length <- as.data.table(A_I2_0_length)
+A_I2_0_length[,group := 'I2_0']
+A_I2_0_length[,term := 'length']
+
+A_I2_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_length <- as.data.table(A_I2_05_length)
+A_I2_05_length[,group := 'I2_05']
+A_I2_05_length[,term := 'length']
+
+
+# A_eye
+A_I1_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_eye <- as.data.table(A_I1_0_eye)
+A_I1_0_eye[,group := 'I1_0']
+A_I1_0_eye[,term := 'eye']
+
+A_I1_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_eye <- as.data.table(A_I1_05_eye)
+A_I1_05_eye[,group := 'I1_05']
+A_I1_05_eye[,term := 'eye']
+
+A_I2_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_eye <- as.data.table(A_I2_0_eye)
+A_I2_0_eye[,group := 'I2_0']
+A_I2_0_eye[,term := 'eye']
+
+A_I2_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_eye <- as.data.table(A_I2_05_eye)
+A_I2_05_eye[,group := 'I2_05']
+A_I2_05_eye[,term := 'eye']
+
+
+# A_max_height
+A_I1_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_max_height <- as.data.table(A_I1_0_max_height)
+A_I1_0_max_height[,group := 'I1_0']
+A_I1_0_max_height[,term := 'max_height']
+
+A_I1_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_max_height <- as.data.table(A_I1_05_max_height)
+A_I1_05_max_height[,group := 'I1_05']
+A_I1_05_max_height[,term := 'max_height']
+
+A_I2_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_max_height <- as.data.table(A_I2_0_max_height)
+A_I2_0_max_height[,group := 'I2_0']
+A_I2_0_max_height[,term := 'max_height']
+
+A_I2_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_max_height <- as.data.table(A_I2_05_max_height)
+A_I2_05_max_height[,group := 'I2_05']
+A_I2_05_max_height[,term := 'max_height']
+
+
+# A_nteeth
+A_I1_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_nteeth <- as.data.table(A_I1_0_nteeth)
+A_I1_0_nteeth[,group := 'I1_0']
+A_I1_0_nteeth[,term := 'nteeth']
+
+A_I1_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I1_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_nteeth <- as.data.table(A_I1_05_nteeth)
+A_I1_05_nteeth[,group := 'I1_05']
+A_I1_05_nteeth[,term := 'nteeth']
+
+A_I2_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_nteeth <- as.data.table(A_I2_0_nteeth)
+A_I2_0_nteeth[,group := 'I2_0']
+A_I2_0_nteeth[,term := 'nteeth']
+
+A_I2_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/I2_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_nteeth <- as.data.table(A_I2_05_nteeth)
+A_I2_05_nteeth[,group := 'I2_05']
+A_I2_05_nteeth[,term := 'nteeth']
+
+
+
+# PC1
+A_I1_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC1_I1_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_gcta_PC1 <- as.data.table(A_I1_0_gcta_PC1)
+A_I1_0_gcta_PC1[,group := 'I1_0']
+A_I1_0_gcta_PC1[,term := 'PC1']
+
+A_I1_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC1_I1_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_gcta_PC1 <- as.data.table(A_I1_05_gcta_PC1)
+A_I1_05_gcta_PC1[,group := 'I1_05']
+A_I1_05_gcta_PC1[,term := 'PC1']
+
+A_I2_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC1_I2_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_gcta_PC1 <- as.data.table(A_I2_0_gcta_PC1)
+A_I2_0_gcta_PC1[,group := 'I2_0']
+A_I2_0_gcta_PC1[,term := 'PC1']
+
+A_I2_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC1_I2_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_gcta_PC1 <- as.data.table(A_I2_05_gcta_PC1)
+A_I2_05_gcta_PC1[,group := 'I2_05']
+A_I2_05_gcta_PC1[,term := 'PC1']
+
+
+# PC2
+A_I1_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC2_I1_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_gcta_PC2 <- as.data.table(A_I1_0_gcta_PC2)
+A_I1_0_gcta_PC2[,group := 'I1_0']
+A_I1_0_gcta_PC2[,term := 'PC2']
+
+A_I1_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC2_I1_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_gcta_PC2 <- as.data.table(A_I1_05_gcta_PC2)
+A_I1_05_gcta_PC2[,group := 'I1_05']
+A_I1_05_gcta_PC2[,term := 'PC2']
+
+A_I2_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC2_I2_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_gcta_PC2 <- as.data.table(A_I2_0_gcta_PC2)
+A_I2_0_gcta_PC2[,group := 'I2_0']
+A_I2_0_gcta_PC2[,term := 'PC2']
+
+A_I2_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC2_I2_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_gcta_PC2 <- as.data.table(A_I2_05_gcta_PC2)
+A_I2_05_gcta_PC2[,group := 'I2_05']
+A_I2_05_gcta_PC2[,term := 'PC2']
+
+
+# PC3
+A_I1_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC3_I1_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_gcta_PC3 <- as.data.table(A_I1_0_gcta_PC3)
+A_I1_0_gcta_PC3[,group := 'I1_0']
+A_I1_0_gcta_PC3[,term := 'PC3']
+
+A_I1_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC3_I1_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_gcta_PC3 <- as.data.table(A_I1_05_gcta_PC3)
+A_I1_05_gcta_PC3[,group := 'I1_05']
+A_I1_05_gcta_PC3[,term := 'PC3']
+
+A_I2_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC3_I2_0_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_gcta_PC3 <- as.data.table(A_I2_0_gcta_PC3)
+A_I2_0_gcta_PC3[,group := 'I2_0']
+A_I2_0_gcta_PC3[,term := 'PC3']
+
+A_I2_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/As_h2_out/PC3_I2_05_COVbatch_MAF_gcta.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_gcta_PC3 <- as.data.table(A_I2_05_gcta_PC3)
+A_I2_05_gcta_PC3[,group := 'I2_05']
+A_I2_05_gcta_PC3[,term := 'PC3']
+
+
+
+h2_out_traitsPCs <- rbind(A_I1_0_length,A_I1_05_length,A_I2_0_length,A_I2_05_length,
+						  A_I1_0_eye,A_I1_05_eye,A_I2_0_eye,A_I2_05_eye,
+						  A_I1_0_nteeth,A_I1_05_nteeth,A_I2_0_nteeth,A_I2_05_nteeth,
+						  A_I1_0_max_height,A_I1_05_max_height,A_I2_0_max_height,A_I2_05_max_height,
+						  A_I1_0_gcta_PC1,A_I1_05_gcta_PC1,A_I2_0_gcta_PC1,A_I2_05_gcta_PC1,
+						  A_I1_0_gcta_PC2,A_I1_05_gcta_PC2,A_I2_0_gcta_PC2,A_I2_05_gcta_PC2,
+						  A_I1_0_gcta_PC3,A_I1_05_gcta_PC3,A_I2_0_gcta_PC3,A_I2_05_gcta_PC3)
+
+h2_out_traitsPCs[, perm := 0]
+
+save(h2_out_traitsPCs, file = '/mnt/pricey_4/doerthe/GRM_May2020/NEW_OCT2020/A_h2_out_traitsPCs_24NOV.RData')
+
+
+
+h2_out_traitsPCs.ag <- h2_out_traitsPCs[,list(Variance=mean(Variance, na.rm=T),
+								Var.lci=quantile(Variance, na.rm=T, .025),Var.uci=quantile(Variance, na.rm=T, .975)),
+							list(Source, group, term, SE, perm=(perm>0))]
+
+h2_out_traitsPCs.ag_use <- h2_out_traitsPCs.ag[Source == "V(G)/Vp"]
+
+h2_out_traitsPCs.ag_use[, SEmin := Variance - SE]
+h2_out_traitsPCs.ag_use[, SEmax := Variance + SE]
+
+
+
+
+## plot h2
+
+# Os
+load(file='/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_h2_out_i.RData')
+h2_estimate_I1_0_out
+h2_estimate_I1_05_out
+h2_estimate_I2_0_out
+h2_estimate_I2_05_out
+
+
+h2_out_i <- rbind(h2_estimate_I1_0_out,h2_estimate_I1_05_out,h2_estimate_I2_0_out,h2_estimate_I2_05_out)
+
+
+h2_out_i.ag <- h2_out_i[,list(Variance=mean(Variance, na.rm=T),
+								Var.lci=quantile(Variance, na.rm=T, .025),Var.uci=quantile(Variance, na.rm=T, .975)),
+							list(Source, i, group, SE, perm=(perm>0))]
+
+h2_out_i.ag_use <- h2_out_i.ag[Source == "V(G)/Vp"]
+	
+							
+O_h2_i_plot <- ggplot(h2_out_i.ag_use[perm == FALSE], aes(y=Variance, x=as.numeric(i), group=group, color=as.factor(group))) +
+
+				geom_rect(aes(xmin=100, xmax=200, ymin=0, ymax=Inf), fill="#FDFD96", colour="#FDFD96") +
+
+				geom_line(size=1) +
+				
+				geom_line(aes(x=as.numeric(i), y=Variance+SE, color=as.factor(group)), linetype="dotted", size = 0.5) +
+				geom_line(aes(x=as.numeric(i), y=Variance-SE, color=as.factor(group)), linetype="dotted", size = 0.5) +
+				
+				facet_wrap(~group, nrow=2) + 
+			  
+				theme(legend.position="none", 
+                        panel.grid.major = element_line(colour = "grey70", size=0.25),
+                        panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                        panel.background = element_rect(fill = "transparent",colour = NA),
+                        plot.background = element_rect(fill = "transparent",colour = NA), 
+                        # strip.text.x = element_blank(),
+                        # axis.text.x = element_blank(), 
+                        axis.title.x = element_blank(), 
+                        axis.title.y = element_blank(),
+                        #axis.title.x = element_text(size=20,family='Arial'), 
+                        #axis.title.y = element_text(size=20, family='Arial'),
+                        axis.text = element_text(size=18, family='Arial'), 
+                        strip.text.x = element_text(size = 20, color = "black"),
+                        strip.text.y = element_text(size = 20, color = "black"))
+
+                        
+options(scipen=10000)
+print(O_h2_i_plot + scale_color_manual(values=c("#000000","#FF0000","#000000","#FF0000")) + scale_x_continuous(limits=c(0,650), breaks=c(0,300,600)))
+
+
+
+O_h2_traitsPCs_plot <- ggplot(h2_out_traitsPCs.ag_use, aes(x=as.factor(term), y=Variance)) +
+						
+						geom_bar(stat="identity", fill=c(rep(c("#000000","#696969","#808080","#A9A9A9","#C0C0C0","#D3D3D3", "#DCDCDC")),
+														 rep(c("#b20000","#cc0000","#e50000","#ff0000","#ff4c4c","#ff6666", "#ff9999")),
+            											 rep(c("#000000","#696969","#A9A9A9","#C0C0C0","#D3D3D3", "#DCDCDC")),
+            											 rep(c("#b20000","#cc0000","#e50000","#ff0000","#ff4c4c","#ff6666", "#ff9999")))) +
+                  		geom_errorbar(aes(x=as.factor(term), ymin=SEmin, ymax=SEmax), width=0.1, colour="black", size=0.5) +
+                  		facet_wrap(~group) +
+                  		
+                  		theme(legend.position="none", 
+                        	  panel.grid.major = element_line(colour = "grey70", size=0.25),
+                        	  panel.grid.minor = element_blank(),
+                        	  panel.background = element_rect(fill = "transparent",colour = NA),
+                        	  plot.background = element_rect(fill = "transparent",colour = NA), 
+                        	  # strip.text.x = element_blank(),
+                        	  # axis.text.x = element_blank(), 
+                        	  axis.title.x = element_blank(), 
+                        	  axis.title.y = element_blank(),
+                        	  #axis.title.x = element_text(size=20,family='Arial'), 
+                        	  #axis.title.y = element_text(size=20, family='Arial'),
+                        	  axis.text = element_text(size=20, family='Arial'), 
+                        	  strip.text.x = element_text(size = 20, color = "black"),
+                        	  strip.text.y = element_text(size = 20, color = "black"))
+
+O_h2_traitsPCs_plot
+                  		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############
+############
+
+# correlation h2 w/ aov output (treatment)
+# ? is there a negative correlation between plasticity and genetic variation 
+
+rm(list=ls()) 
+
+library(ggplot2)
+library(cowplot)
+library(viridis)
+library(plotrix)
+library(data.table)
+library(reshape2)
+library(dplyr)
+library(tidyverse)
+library(foreach)
+library(abind)
+library(doMC)
+registerDoMC(20)
+
+
+# h2 data
+load(file='/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_h2_out_i.RData')
+h2_estimate_I1_0_out
+h2_estimate_I1_05_out
+h2_estimate_I2_0_out
+h2_estimate_I2_05_out
+
+
+h2_out_i <- rbind(h2_estimate_I1_0_out,h2_estimate_I1_05_out,h2_estimate_I2_0_out,h2_estimate_I2_05_out)
+
+
+h2_out_i.ag <- h2_out_i[,list(Variance=mean(Variance, na.rm=T),
+								Var.lci=quantile(Variance, na.rm=T, .025),Var.uci=quantile(Variance, na.rm=T, .975)),
+							list(Source, i, group, SE, perm=(perm>0))]
+
+h2_out_i.ag_use <- h2_out_i.ag[Source == "V(G)/Vp"]
+
+
+
+
+# aov data
+
+# load(file='/scratch/db4ua/pheno_induction/aov_out_Aonly.RData')
+load(file='/mnt/spicy_1/daphnia/analysis/analysis_results/dataANDresults/aov_out_Aonly.RData')
+#aov_out_Aonly
+
+# load(file='/scratch/db4ua/pheno_induction/aov_out_Oplus.RData')
+load(file='/mnt/spicy_1/daphnia/analysis/analysis_results/dataANDresults/aov_out_Oplus.RData')
+
+#aov_out_Oplus
+
+
+# add adjusted p and merge Oplus_exA and Aonly
+aov_out_Oplus[,group := 'Oplus']
+aov_out_Oplus[,pa:=p.adjust(p)]
+
+aov_out_Aonly[,group := 'Aonly']
+aov_out_Aonly[,pa:=p.adjust(p)]
+
+aov_out_all <- rbind(aov_out_Oplus,aov_out_Aonly)
+
+# aggregate
+aov_out_all.ag <- aov_out_all[,list(pa=mean(pa, na.rm=T),
+                                    pa.lci=quantile(pa, na.rm=T, .025),
+                                    pa.uci=quantile(pa, na.rm=T, .975),
+                                    F=mean(F, na.rm=T),
+                                    F.lci=quantile(F, na.rm=T, .025),
+                                    F.uci=quantile(F, na.rm=T, .975),
+                                    MS=mean(MS, na.rm=T),
+                                    MS.lci=quantile(MS, na.rm=T, .025),
+                                    MS.uci=quantile(MS, na.rm=T, .975),
+                                    etasq=mean(etasq, na.rm=T),
+                                    etasq.lci=quantile(etasq, na.rm=T, .025),
+                                    etasq.uci=quantile(etasq, na.rm=T, .975)),
+                              list(group, i, instar, term, perm=(perm>0))]
+
+
+# effect size, i.e. etasq() 
+# padj_sign <- ddply(aov_out_all.ag, c("instar","term"), summarise, grp.min=min(pa))
+
+aov_out_all.ag[, instar_new := ifelse(aov_out_all.ag$instar == 1, 'instar1', 'instar2')]
+
+
+
+###
+h2_out_i.ag_use[, i := as.numeric(as.character(i))]
+
+h2_I1_05_cor <- h2_out_i.ag_use[group == 'I1_05'][, c('i', 'Variance')]
+setnames(h2_I1_05_cor, 'Variance', 'h2_predation')
+h2_I1_05_cor[, instar := 1]
+
+h2_I2_05_cor <- h2_out_i.ag_use[group == 'I2_05'][, c('i', 'Variance')]
+setnames(h2_I2_05_cor, 'Variance', 'h2_predation')
+h2_I2_05_cor[, instar := 2]
+
+setkey(h2_I1_05_cor,i)
+setkey(h2_I2_05_cor,i)
+
+h2_predation_data <- rbind(h2_I1_05_cor,h2_I2_05_cor)
+setkey(h2_predation_data,i, instar)
+
+
+
+h2_I1_0_cor <- h2_out_i.ag_use[group == 'I1_0'][, c('i', 'Variance')]
+setnames(h2_I1_0_cor, 'Variance', 'h2_control')
+h2_I1_0_cor[, instar := 1]
+
+h2_I2_0_cor <- h2_out_i.ag_use[group == 'I2_0'][, c('i', 'Variance')]
+setnames(h2_I2_0_cor, 'Variance', 'h2_control')
+h2_I2_0_cor[, instar := 2]
+
+setkey(h2_I1_0_cor,i)
+setkey(h2_I2_0_cor,i)
+
+h2_predationDIFF_I1_data <- cbind(h2_I1_0_cor,h2_I1_05_cor)
+h2_predationDIFF_I1_data[, pred_diff := h2_predation-h2_control]
+
+h2_predationDIFF_I2_data <- cbind(h2_I2_0_cor,h2_I2_05_cor)
+h2_predationDIFF_I2_data[, pred_diff := h2_predation-h2_control]
+
+h2_predationDIFF_data <- rbind(h2_predationDIFF_I1_data,h2_predationDIFF_I2_data)
+setkey(h2_predationDIFF_data,i, instar)
+
+
+
+aov_out_all.ag[, i := as.numeric(as.character(i))]
+
+aov_data <- aov_out_all.ag[group == 'Oplus'][i>9 & i<651][term == 'trt'][perm == FALSE][, c('i', 'etasq', 'instar')]
+setnames(aov_data, 'etasq', 'plasticity')
+setkey(aov_data,i,instar)
+
+
+
+
+
+aov_data 
+setkey(aov_data,i,instar)
+
+h2_predation_data 
+setkey(h2_predation_data,i, instar)
+
+h2_predationDIFF_data 
+setkey(h2_predationDIFF_data,i, instar)
+
+
+all_data <- cbind(aov_data, h2_predation_data[, 'h2_predation'],h2_predationDIFF_data[, 'pred_diff'])
+save(all_data, file = 'all_data.RData')
+
+
+
+load(file = 'all_data.RData')
+
+p1 <- ggplot(all_data, aes(y=reorder(h2_predation, i),  
+						   x=plasticity)) + 
+			geom_point() + 
+			geom_smooth(method='lm') +
+			facet_wrap(~instar, ncol=1)
+
+p1_red <- ggplot(all_data[i>99 & i<301], aes(y=h2_predation, 
+						   x=plasticity)) + 
+			geom_point() + 
+			geom_smooth(method='lm') +
+			facet_wrap(~instar, ncol=1)
+
+
+p1_plast <- ggplot(all_data[i>149 & i<251], aes(y=h2_predation, 
+						   x=plasticity)) + 
+			geom_point() + 
+			geom_smooth(method='lm') +
+			facet_wrap(~instar, ncol=1)
+
+
+
+p2 <- ggplot(all_data, aes(y=pred_diff, 
+						   x=plasticity)) + 
+			geom_point() + 
+			geom_smooth(method='lm') +
+			facet_wrap(~instar, ncol=1)
+
+		
+p2_red <- ggplot(all_data[i>99 & i<301], aes(y=pred_diff, 
+						   x=plasticity)) + 
+			geom_point() + 
+			geom_smooth(method='lm') +
+			facet_wrap(~instar, ncol=1)
+
+
+p2_plast <- ggplot(all_data[i>149 & i<251], aes(y=pred_diff, 
+						   x=plasticity)) + 
+			geom_point() + 
+			geom_smooth(method='lm') +
+			facet_wrap(~instar, ncol=1)
+
+
+
+
+
+aov_out_plot <- ggplot(data = aov_out_all.ag[term %in% c('trt')][perm == FALSE][group == 'Oplus'],  
+                       aes(x=i, y=etasq, group=term, color=as.factor(term))) +   
+                  geom_line(size = 2) +
+                  geom_point(aes(x=i, y=etasq.lci), shape='.', size=0.5) +
+                  geom_point(aes(x=i, y=etasq.uci), shape='.', size=0.5) +
+                  
+                  # geom_point(data = aov_out_all.ag[term %in% c('trt')][perm == TRUE], aes(x=i, y=etasq, group=perm, color=as.factor(term)), size=0.1) +
+                  # geom_point(data = aov_out_all.ag[term %in% c('trt')][perm == TRUE], aes(x=i, y=etasq.lci, group=term), shape='.', size=0.5) +
+                  # geom_point(data = aov_out_all.ag[term %in% c('trt')][perm == TRUE], aes(x=i, y=etasq.uci, group=term), shape='.', size=0.5) +
+                
+                  facet_wrap(~instar_new, ncol=1) +
+                  
+                  #geom_vline(xintercept=aov_out_all.ag[term %in% c('geno','gxe','trt')][perm == FALSE][which.min(pa)]$i, linetype = 'dotted') + 
+                  # modify vline > w/ padj_sign
+  
+                  theme(legend.position="none", 
+                        panel.grid.major = element_line(colour = "grey70", size=0.25),
+                        panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                        panel.background = element_rect(fill = "transparent",colour = NA),
+                        plot.background = element_rect(fill = "transparent",colour = NA), 
+                        # strip.text.x = element_blank(),
+                        # axis.text.x = element_blank(), 
+                        axis.title.x = element_blank(), 
+                        axis.title.y = element_blank(),
+                        #axis.title.x = element_text(size=20,family='Arial'), 
+                        #axis.title.y = element_text(size=20, family='Arial'),
+                        axis.text = element_text(size=20, family='Arial'), 
+                        strip.text.x = element_text(size = 20, color = "black"),
+                        strip.text.y = element_text(size = 20, color = "black"))
+  
+aov_out_plot + labs(x = "i", y = "effect size") + scale_color_manual(values=c("#FF0000")) + scale_x_continuous(limits=c(0,700), breaks=c(0,300,600))
+
+
+
+
+
+
+
+
+
+############
+############
+
+
+
+## permuted data
+
+perm.input<-fread("/mnt/pricey_4/doerthe/GRM_May2020/perm_input.txt")
+
+setkey(pheno_data_use_O_I1_0, id, i)
+
+foreach(perm=c(1:100))%do%{
+
+	foreach(i.i = unique(pheno_data_use_O_I1_0$i), .errorhandling="remove", .combine="rbind") %do% {
+			
+	phenos <- pheno_data_use_O_I1_0[i == i.i]
+
+	print(perm)
+	seed <- perm.input[V1==perm,V2]
+	print(seed)
+		
+	setkey(phenos, cloneid_geno, id)
+	
+	phenos_new <- foreach(clone.i = unique(phenos$cloneid_geno), .errorhandling="remove", .combine="rbind") %do% {
+	
+	tmp_all_clones <- phenos
+	tmp_clone.i <- tmp_all_clones[cloneid_geno == clone.i]
+	
+	set.seed(seed)
+	sample_clone.i <- sample(tmp_all_clones[!cloneid_geno %in% tmp_clone.i$cloneid_geno]$cloneid_geno, 1)
+	set.seed(seed)
+	tmp_clone.i[, id_shuffled := sample(tmp_all_clones[cloneid_geno == sample_clone.i]$id)]
+	
+	as.data.table(tmp_clone.i)
+	
+	}
+	
+	phenos_new
+	
+	write.table(phenos_new[,c("id_shuffled", "id_shuffled", "height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/RAW/Os_data_cov/I1_0_plink_phenos_perm", perm, "_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos_new[,c("id_shuffled", "id_shuffled", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/RAW/Os_data_cov/I1_0_cov_gcta_perm", perm, "_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+	}}
+
+
+
+
+
+
+
+
+
+
+
+## aggregate Os
+all_data_final
+setkey(all_data_final, GenoPLUS, i)
+
+all_data_final.ag <- all_data_final[, list(mean_height=mean(height, na.rm=T),
+										   mean_length=mean(length, na.rm=T),
+										   mean_eye=mean(eye, na.rm=T),
+										   mean_max_height=mean(max_height, na.rm=T),
+										   median_nteeth=median(nteeth, na.rm=T)),
+									   list(cloneid_geno, SC_unique, SC_group, group, treatment, instar, i, pond, season)]
+
+all_data_final.ag[, GENO_trt := paste0(cloneid_geno,"_",treatment)]
+
+
+all_data_final.batch_ag <- all_data_final[, list(mean_height=mean(height, na.rm=T),
+										   mean_length=mean(length, na.rm=T),
+										   mean_eye=mean(eye, na.rm=T),
+										   mean_max_height=mean(max_height, na.rm=T),
+										   median_nteeth=median(nteeth, na.rm=T)),
+									   list(cloneid_geno, SC_unique, SC_group, group, treatment, instar, i, batch, pond, season)]
+									   
+all_data_final.batch_ag[, GENO_batch := paste0(cloneid_geno,"_",batch)]
+all_data_final.batch_ag[, GENO_trt_batch := paste0(cloneid_geno,"_",treatment,"_",batch)]
+
+
+## aggregate As
+pheno_data_use_A_use
+setkey(pheno_data_use_A_use, GenoPLUS, i)
+
+pheno_data_use_A_use.ag <- pheno_data_use_A_use[, list(mean_height=mean(height, na.rm=T),
+													   mean_length=mean(length, na.rm=T),
+													   mean_eye=mean(eye, na.rm=T),
+													   mean_max_height=mean(max_height, na.rm=T),
+													   median_nteeth=median(nteeth, na.rm=T)),
+													list(cloneid_geno, SC_adj, SC_group, group, treatment, instar, i, pond, season)]
+
+pheno_data_use_A_use.ag[, GENO_trt := paste0(cloneid_geno,"_",treatment)]
+
+
+pheno_data_use_A_use.batch_ag <- pheno_data_use_A_use[, list(mean_height=mean(height, na.rm=T),
+										   			   mean_length=mean(length, na.rm=T),
+										   			   mean_eye=mean(eye, na.rm=T),
+										   			   mean_max_height=mean(max_height, na.rm=T),
+										   			   median_nteeth=median(nteeth, na.rm=T)),
+										   			 list(cloneid_geno, SC_adj, SC_group, group, treatment, instar, i, batch, pond, season)]
+									   
+pheno_data_use_A_use.batch_ag[, GENO_batch := paste0(cloneid_geno,"_",batch)]
+pheno_data_use_A_use.batch_ag[, GENO_trt_batch := paste0(cloneid_geno,"_",treatment,"_",batch)]
+
+
+
+### Os.batch_ag - for GxE
+pheno_data_use_O_I1_GxE.batch_ag <- all_data_final.batch_ag[group %in% c('O','ctrl_O')][instar == 1][treatment %in% c(0, 0.5)]
+pheno_data_use_O_I1_GxE.batch_ag[, id := GENO_trt_batch]
+pheno_data_use_O_I1_GxE.batch_ag[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+data_use_O.medrd_I1_GxE.batch_ag <- pheno_data_use_O_I1_GxE.batch_ag[i == 150]
+#save(data_use_O.medrd_I1_GxE.batch_ag, file="data_use_O.medrd_I1_GxE.batch_ag.RData")
+
+pheno_data_use_O_I2_GxE.batch_ag <- all_data_final.batch_ag[group %in% c('O','ctrl_O')][instar == 2][treatment %in% c(0, 0.5)]
+pheno_data_use_O_I2_GxE.batch_ag[, id := GENO_trt_batch]
+pheno_data_use_O_I2_GxE.batch_ag[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+data_use_O.medrd_I2_GxE.batch_ag <- pheno_data_use_O_I2_GxE.batch_ag[i == 150]
+#save(data_use_O.medrd_I2_GxE.batch_ag, file="data_use_O.medrd_I2_GxE.batch_ag.RData")
+
+
+foreach(i.i = unique(pheno_data_use_O_I2_GxE.batch_ag$i), .errorhandling="remove", .combine="rbind") %do% {
+			
+	phenos <- pheno_data_use_O_I2_GxE.batch_ag[i == i.i]
+						
+	write.table(phenos[,c("id", "id", "mean_height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_GxE.batch_ag_plink_phenos_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_GxE.batch_ag_cov_gcta_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_GxE.batch_ag_env_gcta_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+	}
+
+
+
+
+### As.batch_ag - for GxE  
+pheno_data_use_A_I1_GxE.batch_ag <- all_data_final.batch_ag[group %in% c('A','ctrl_A')][instar == 1][treatment %in% c(0, 0.5)]
+pheno_data_use_A_I1_GxE.batch_ag[, id := GENO_trt_batch]
+pheno_data_use_A_I1_GxE.batch_ag[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+data_use_A.medrd_I1_GxE.batch_ag <- pheno_data_use_A_I1_GxE.batch_ag[i == 150]
+save(data_use_A.medrd_I1_GxE.batch_ag, file="data_use_A.medrd_I1_GxE.batch_ag.RData")
+
+
+pheno_data_use_A_I2_GxE.batch_ag <- all_data_final.batch_ag[group %in% c('A','ctrl_A')][instar == 2][treatment %in% c(0, 0.5)]
+pheno_data_use_A_I2_GxE.batch_ag[, id := GENO_trt_batch]
+pheno_data_use_A_I2_GxE.batch_ag[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+data_use_A.medrd_I2_GxE.batch_ag <- pheno_data_use_A_I2_GxE.batch_ag[i == 150]
+save(data_use_A.medrd_I2_GxE.batch_ag, file="data_use_A.medrd_I2_GxE.batch_ag.RData")
+
+
+
+
+#### MODIFY
+foreach(i.i = unique(pheno_data_use_A_I1_GxE.batch_ag$i), .errorhandling="remove", .combine="rbind") %do% {
+			
+	phenos <- pheno_data_use_A_I1_GxE.batch_ag[i == i.i]
+						
+	write.table(phenos[,c("id", "id", "mean_height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/As_data_cov/I1_GxE.batch_ag_plink_phenos_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/As_data_cov/I1_GxE.batch_ag_cov_gcta_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/As_data_cov/I1_GxE.batch_ag_env_gcta_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+	}
+
+
+
+## permuted data
+
+perm.input<-fread("/mnt/pricey_4/doerthe/GRM_May2020/perm_input.txt")
+
+
+setkey(pheno_data_use_O_I2_GxE.batch_ag, id, i)
+
+foreach(perm=c(1:100))%do%{
+
+	foreach(i.i = unique(pheno_data_use_O_I2_GxE.batch_ag$i), .errorhandling="remove", .combine="rbind") %do% {
+			
+	phenos <- pheno_data_use_O_I2_GxE.batch_ag[i == i.i]
+
+	print(perm)
+	seed <- perm.input[V1==perm,V2]
+	print(seed)
+	
+	set.seed(seed)
+	phenos[GxE_term == 'ctrl', id := sample(id)]
+	set.seed(seed)
+	phenos[GxE_term == 'juju', id := sample(id)]
+		
+	write.table(phenos[,c("id", "id", "mean_height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_GxE.batch_ag_plink_phenos_perm", perm, "_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_GxE.batch_ag_cov_gcta_perm", perm, "_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I2_GxE.batch_ag_env_gcta_perm", perm, "_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+	}}
+
+
+
+
+
+
+### As
+pheno_data_use_A_I1_0 <- all_data_final[group %in% c('A','ctrl_A')][instar == 1][treatment == 0]
+pheno_data_use_A_I1_0[, id := GenoPLUS]
+
+pheno_data_use_A_I1_05 <- all_data_final[group %in% c('A','ctrl_A')][instar == 1][treatment == 0.5]
+pheno_data_use_A_I1_05[, id := GenoPLUS]
+
+pheno_data_use_A_I2_0 <- all_data_final[group %in% c('A','ctrl_A')][instar == 2][treatment == 0]
+pheno_data_use_A_I2_0[, id := GenoPLUS]
+
+pheno_data_use_A_I2_05 <- all_data_final[group %in% c('A','ctrl_A')][instar == 2][treatment == 0.5]
+pheno_data_use_A_I2_05[, id := GenoPLUS]
+
+
+foreach(i.i = unique(pheno_data_use_A_I2_05$i), .errorhandling="remove", .combine="rbind") %do% {
+			
+	phenos <- pheno_data_use_A_I2_05[i == i.i]
+						
+	write.table(phenos[,c("id", "id", "height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/As_data_cov/I2_05_plink_phenos_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/As_data_cov/I2_05_cov_gcta_i", i.i, ".txt"), quote=F, sep="\t", row.names=F, col.names=F)
+			
+	}
+
+
+
+#############################
+### prepare genotype data ###
+#############################
+
+-rw-r--r--. 1 dbecker dbecker  11M Jun 24 12:27 O_I1_GxE.batch_ag.bcf
+-rw-rw-r--. 1 dbecker dbecker 310M Jun 24 12:29 O_I1_GxE.batch_ag.vcf
+-rw-r--r--. 1 dbecker dbecker  11M Jun 24 12:28 O_I2_GxE.batch_ag.bcf
+-rw-rw-r--. 1 dbecker dbecker 298M Jun 24 12:32 O_I2_GxE.batch_ag.vcf
+
+
+## convert bcf in vcf (could not re-annotate bcf file re chromosomeID)
+bcftools view O_I2_GxE.batch_ag.bcf > O_I2_GxE.batch_ag.vcf
+
+cp O_I2_GxE.batch_ag.vcf O_I2_GxE.batch_ag_chrnum.vcf
+
+## check VCF
+bcftools query -l /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+bcftools query -f '%CHROM\t%ID\n' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf | head -10
+
+
+## rename chromosomes w/ sed
+sed -i 's/Scaffold_1931_HRSCAF_2197/1/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_9198_HRSCAF_10754/2/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_9199_HRSCAF_10755/3/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_9197_HRSCAF_10753/4/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_9200_HRSCAF_10757/5/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_2373_HRSCAF_2879/6/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_7757_HRSCAF_8726/7/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_6786_HRSCAF_7541/8/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_1863_HRSCAF_2081/9/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_2217_HRSCAF_2652/10/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_9201_HRSCAF_10758/11/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+sed -i 's/Scaffold_2158_HRSCAF_2565/12/g' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+
+## check VCF
+bcftools query -l /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf
+bcftools query -f '%CHROM\t%ID\n' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf | head -10
+bcftools query -f '%CHROM\t%POS0\t%END\t%ID\n' /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf | wc -l
+## NOTE_DB: chromosomes are modified, i.e. #1-12 now
+
+
+### PLINK
+## make binary files (.bed, .bim, .fam)
+plink1.9 --vcf /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum.vcf --set-missing-var-ids @:# --double-id --make-bed --out O_I2_GxE.batch_ag_chrnum
+  
+
+## make grm w/ MAF (--make-grm-bin; --make-grm)
+gcta64 --bfile O_I2_GxE.batch_ag_chrnum --maf 0.05 --make-grm --out O_I2_GxE.batch_ag_chrnum_MAF.05 --thread-num 1    
+
+
+
+
+##############################
+### calculate heritability ###
+##############################
+
+# batch as cov & MAF 0.05
+
+for i in {10..650}; do
+echo $i
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_I1_GxE.batch_ag_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_GxE.batch_ag_plink_phenos_i$i.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_GxE.batch_ag_cov_gcta_i$i.txt \
+  --gxe /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_GxE.batch_ag_env_gcta_i$i.txt \
+  --reml \
+  --reml-lrt 2 \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_GxE.batch_ag_env_COVbatch_MAF_gcta_i$i \
+  --thread-num 1
+
+done
+
+
+
+# batch as cov & MAF 0.05 - on perms
+
+outer=1
+for perm in {90..100}; do
+echo $perm
+
+inner=10
+for i in {10..650}; do
+echo $i
+
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/O_I1_GxE.batch_ag_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_GxE.batch_ag_plink_phenos_perm"$perm"_i"$i".txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_GxE.batch_ag_cov_gcta_perm"$perm"_i"$i".txt \
+  --gxe /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_data_cov/I1_GxE.batch_ag_env_gcta_i$i.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/I1_GxE.batch_ag_env_COVbatch_MAF_gcta_perm"$perm"_i"$i" \
+  --thread-num 1
+
+let "inner+=1"
+done
+	
+let "outer+=1"
+done 
+
+
+
+
+## exctract heritability 
+
+
+
+
+
+
+
+
+## Os
+
+#h2 estimate
+list_path_sites_h2 <- foreach(i=c(10:650))%do%{list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern=paste0("I2_GxE.batch_ag_env_COVbatch_MAF_gcta_i",i,".hsq"), all.files=T)}
+files_path_sites_h2 <- unlist(list_path_sites_h2)
+files_path_sites_h2perm <- list.files(path="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", pattern="I2_GxE.batch_ag_env_COVbatch_MAF_gcta_perm*.*hsq", all.files=T) 
+
+h2_estimate_I2_GxE <- foreach(file = files_path_sites_h2) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]              
+              tmp_data[, i := gsub(".*_gcta_i(.*)\\..*", "\\1", tmp_data$file)]
+              tmp_data[, perm := 0]
+              
+              as.data.table(tmp_data)
+              
+              }
+
+h2_estimate_I2_GxE_out <- rbindlist(h2_estimate_I2_GxE)
+h2_estimate_I2_GxE_out[, group := "I2_GxE"]
+
+
+h2_perm.estimate_I2_GxE <- foreach(file = files_path_sites_h2perm) %do% {
+  
+              #load data
+              tmp_data <- fread(paste0("/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/Os_h2_out/", file), fill=T)
+              
+              tmp_data[, filename := file]  
+              tmp_data[, i := gsub(".*_gcta_perm(.*)_i(.*)\\..*", "\\2", tmp_data$file)]
+              tmp_data[, perm := gsub(".*_gcta_perm(.*)_i(.*)\\..*", "\\1", tmp_data$file)]
+
+              as.data.table(tmp_data)
+              
+              }
+
+h2_perm.estimate_I2_GxE_out <- rbindlist(h2_perm.estimate_I2_GxE)
+h2_perm.estimate_I2_GxE_out[, group := "I2_GxE"]
+
+save(h2_estimate_I2_GxE_out, h2_perm.estimate_I2_GxE_out, file='/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/h2_I2_GxE_out.RData')
+
+
+
+## plot h2
+
+## Os
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/h2_I1_GxE_out.RData")
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/NEW_AUG2020/h2_I2_GxE_out.RData")
+
+h2_estimate_I1_GxE_out
+h2_perm.estimate_I1_GxE_out
+
+h2_estimate_I2_GxE_out
+h2_perm.estimate_I2_GxE_out
+
+h2_out_all <- rbind(h2_estimate_I1_GxE_out, h2_perm.estimate_I1_GxE_out, h2_estimate_I2_GxE_out, h2_perm.estimate_I2_GxE_out)
+
+
+h2_out_all.ag <- h2_out_all[,list(Variance=mean(Variance, na.rm=T),
+									Var.lci=quantile(Variance, na.rm=T, .025),Var.uci=quantile(Variance, na.rm=T, .975)),
+							list(Source, i, group, perm=(perm>0)), length=length(h2_out_all]
+
+
+tmp.data <- h2_out_all[Source %in% c("V(G)/Vp")][group %in% c('I1_GxE','I2_GxE')][perm>0]
+tmp.data.ag <- tmp.data[,list(Variance=mean(Variance, na.rm=T)),
+							list(i, group)]
+							
+							
+ggplot(tmp.data.ag , aes(y=Variance, x=as.numeric(i))) + geom_line() + facet_grid(~group) + ylim(0,0.5)
+
+
+O_gcta <- ggplot(h2_out_all.ag[Source %in% c("V(G)/Vp")][group %in% c('I1_GxE','I2_GxE')][perm == FALSE], aes(y=Variance, x=as.numeric(i), group=perm, color=as.factor(Source))) +
+			  
+			  geom_line(size=1) +
+			  
+			  geom_line(data=h2_out_all.ag[Source %in% c("V(G)/Vp")][group %in% c('I1_GxE','I2_GxE')][perm == TRUE], aes(x=as.numeric(i), y=Var.uci, group=perm, color=as.factor(Source)), linetype="dotted") +
+			  geom_line(data=h2_out_all.ag[Source %in% c("V(G)/Vp")][group %in% c('I1_GxE','I2_GxE')][perm == TRUE], aes(x=as.numeric(i), y=Var.lci, group=perm, color=as.factor(Source)), linetype="dotted") +
+
+			  facet_wrap(~group~Source, nrow=2) +  # scales = "free_y"
+
+			  theme(legend.position="none", 
+                        panel.grid.major = element_blank(), 
+                        panel.grid.minor = element_blank(),
+                        panel.background = element_rect(fill = "transparent",colour = NA),
+                        plot.background = element_rect(fill = "transparent",colour = NA), 
+                        # strip.text.x = element_blank(),
+                        # axis.text.x = element_blank(), 
+                        axis.title.x = element_blank(), 
+                        axis.title.y = element_blank(),
+                        #axis.title.x = element_text(size=20,family='Arial'), 
+                        #axis.title.y = element_text(size=20, family='Arial'),
+                        axis.text = element_text(size=20, family='Arial'), 
+                        strip.text.x = element_text(size = 20, color = "black"),
+                        strip.text.y = element_text(size = 20, color = "black"))
+                        
+
+h2_out_all.ag_wide <- as.data.table(dcast(h2_out_all.ag[Source %in% c("V(G)/Vp","V(GxE)/Vp")][perm==FALSE], 
+								Source + i + perm ~ group, 
+								fun=mean,
+								value.var= 'Variance'))
+								
+h2_out_all.ag_wide[, i := as.numeric(i)]
+
+setkey(h2_out_all.ag_wide, i)
+
+p1 <- ggplot(h2_out_all.ag_wide, aes(x=reorder(h2_out_all.ag_wide$I1_GxE,as.numeric(h2_out_all.ag_wide$i)), y=reorder(h2_out_all.ag_wide$I1_GxE.batch_ag,as.numeric(h2_out_all.ag_wide$i)))) +
+			  geom_point(size=1) +
+			  facet_wrap(~Source, nrow=2)
+
+p1 + geom_abline(intercept=0,slope=1)
+
+h2_out_all.ag_wide
+
+options(scipen=10000)
+print(O_gcta + ggtitle("O_gcta_qcovPCs_MAF.05") + scale_x_continuous(limits=c(0,650), breaks=c(0,300,600)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## generate phenotype and covfiles for traits
+
+all_data_final
+setkey(all_data_final, GenoPLUS, i)
+
+
+# Os
+pheno_data_use_O_I1_0 <- all_data_final[group %in% c('O','ctrl_O')][instar == 1][treatment == 0]
+pheno_data_use_O_I1_0[, id := GenoPLUS]
+
+pheno_data_use_O_I1_05 <- all_data_final[group %in% c('O','ctrl_O')][instar == 1][treatment == 0.5]
+pheno_data_use_O_I1_05[, id := GenoPLUS]
+
+pheno_data_use_O_I2_0 <- all_data_final[group %in% c('O','ctrl_O')][instar == 2][treatment == 0]
+pheno_data_use_O_I2_0[, id := GenoPLUS]
+
+pheno_data_use_O_I2_05 <- all_data_final[group %in% c('O','ctrl_O')][instar == 2][treatment == 0.5]
+pheno_data_use_O_I2_05[, id := GenoPLUS]
+
+phenos <- pheno_data_use_O_I2_0[i == 150]
+batch <- pheno_data_use_O_I1_0[i == 150]
+						
+write.table(phenos[,c("id", "id", "length")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_05_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "max_height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_05_plink_max_height.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "eye")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_05_plink_eye.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "nteeth")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_0_plink_nteeth.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_05_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	
+	
+
+# As
+pheno_data_use_A_I1_0 <- all_data_final[group %in% c('A','ctrl_A')][instar == 1][treatment == 0]
+pheno_data_use_A_I1_0[, id := GenoPLUS]
+
+pheno_data_use_A_I1_05 <- all_data_final[group %in% c('A','ctrl_A')][instar == 1][treatment == 0.5]
+pheno_data_use_A_I1_05[, id := GenoPLUS]
+
+pheno_data_use_A_I2_0 <- all_data_final[group %in% c('A','ctrl_A')][instar == 2][treatment == 0]
+pheno_data_use_A_I2_0[, id := GenoPLUS]
+
+pheno_data_use_A_I2_05 <- all_data_final[group %in% c('A','ctrl_A')][instar == 2][treatment == 0.5]
+pheno_data_use_A_I2_05[, id := GenoPLUS]
+
+phenos <- pheno_data_use_A_I2_05[i == 150]
+batch <- pheno_data_use_A_I2_05[i == 150]
+
+						
+write.table(phenos[,c("id", "id", "length")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_05_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "max_height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_05_plink_max_height.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "eye")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_05_plink_eye.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "nteeth")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_05_plink_nteeth.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_05_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	
+	
+## calculate heritability for traits 
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_0_plink_nteeth.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_0_cov_gcta.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_COVbatch_MAF_gcta_nteeth \
+  --thread-num 10
+
+
+
+
+## PC data from geomorph
+
+load(file='/mnt/pricey_4/doerthe/GRM_May2020/PC_scores_I1.RData')
+
+
+-rw-rw-r--. 1 dbecker dbecker 282K Jun 24 11:57 PCA.scores_I1.ag.RData
+-rw-rw-r--. 1 dbecker dbecker 443K Jun 24 12:04 PCA.scores_I1.batch.ag.RData
+-rw-rw-r--. 1 dbecker dbecker 1.9M Jun 24 11:53 PCA.scores_I1.raw.RData
+-rw-rw-r--. 1 dbecker dbecker 256K Jun 24 11:58 PCA.scores_I2.ag.RData
+-rw-rw-r--. 1 dbecker dbecker 388K Jun 24 12:05 PCA.scores_I2.batch.ag.RData
+-rw-rw-r--. 1 dbecker dbecker 1.7M Jun 24 11:54 PCA.scores_I2.raw.RData
+
+
+
+all_data_final[i==150]
+all_data_final.ag[i==150]
+all_data_final.batch_ag[i==150]
+
+
+# I1 RAW
+load(file='/mnt/pricey_4/doerthe/GEOMORPH_out/PCA/PCA.scores_I1.raw.RData')  # "PCAscores.raw" 
+
+I1_raw <- PCAscores.raw
+I1_raw_use <- as.data.table(I1_raw[,c(1:3)])
+I1_raw_use[, ID := rownames(I1_raw)]
+I1_raw_use[, group := 'I1_raw']
+setnames(I1_raw_use, 'ID', 'GenoPLUS')
+
+I1_raw_use_plus <- merge(I1_raw_use, all_data_final[i==150][, c('GenoPLUS','i','batch','treatment')], by='GenoPLUS', all.x=T)
+I1_raw_use_plus[, id := GenoPLUS]
+I1_raw_use_plus[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+phenos <- I1_raw_use_plus
+
+#PC1
+write.table(phenos[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_raw_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_raw_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_raw_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC2
+write.table(phenos[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_raw_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_raw_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_raw_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC3
+write.table(phenos[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_raw_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_raw_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_raw_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+# I2 RAW
+load(file='/mnt/pricey_4/doerthe/GEOMORPH_out/PCA/PCA.scores_I2.raw.RData')  # "PCAscores.raw" 
+
+I2_raw <- PCAscores.raw
+I2_raw_use <- as.data.table(I2_raw[,c(1:3)])
+I2_raw_use[, ID := rownames(I2_raw)]
+I2_raw_use[, group := 'I2_raw']
+setnames(I2_raw_use, 'ID', 'GenoPLUS')
+
+I2_raw_use_plus <- merge(I2_raw_use, all_data_final[i==150][, c('GenoPLUS','i','batch','treatment')], by='GenoPLUS', all.x=T)
+I2_raw_use_plus[, id := GenoPLUS]
+I2_raw_use_plus[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+phenos <- I2_raw_use_plus
+
+#PC1
+write.table(phenos[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_raw_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_raw_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_raw_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC2
+write.table(phenos[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_raw_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_raw_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_raw_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC3
+write.table(phenos[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_raw_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_raw_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_raw_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+# I1 BATCH.AG
+load(file='/mnt/pricey_4/doerthe/GEOMORPH_out/PCA/PCA.scores_I1.batch.ag.RData')  # "PCAscores.raw" 
+
+I1_batch.ag <- PCAscores.ag
+I1_batch.ag_use <- as.data.table(I1_batch.ag[,c(1:3)])
+I1_batch.ag_use[, ID := rownames(I1_batch.ag)]
+I1_batch.ag_use[, group := 'I1_batch.ag']
+setnames(I1_batch.ag_use, 'ID', 'GENO_trt_batch')
+
+I1_batch.ag_use_plus <- merge(I1_batch.ag_use, all_data_final.batch_ag[i==150][, c('GENO_trt_batch','i','batch','treatment')], by='GENO_trt_batch', all.x=T)
+I1_batch.ag_use_plus[, id := GENO_trt_batch]
+I1_batch.ag_use_plus[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+phenos <- I1_batch.ag_use_plus
+
+#PC1
+write.table(phenos[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_batch.ag_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_batch.ag_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_batch.ag_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC2
+write.table(phenos[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_batch.ag_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_batch.ag_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_batch.ag_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC3
+write.table(phenos[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_batch.ag_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_batch.ag_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_batch.ag_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+# I2 BATCH.AG
+load(file='/mnt/pricey_4/doerthe/GEOMORPH_out/PCA/PCA.scores_I2.batch.ag.RData')  # "PCAscores.raw" 
+
+I2_batch.ag <- PCAscores.ag
+I2_batch.ag_use <- as.data.table(I2_batch.ag[,c(1:3)])
+I2_batch.ag_use[, ID := rownames(I2_batch.ag)]
+I2_batch.ag_use[, group := 'I2_batch.ag']
+setnames(I2_batch.ag_use, 'ID', 'GENO_trt_batch')
+
+I2_batch.ag_use_plus <- merge(I2_batch.ag_use, all_data_final.batch_ag[i==150][, c('GENO_trt_batch','i','batch','treatment')], by='GENO_trt_batch', all.x=T)
+I2_batch.ag_use_plus[, id := GENO_trt_batch]
+I2_batch.ag_use_plus[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+phenos <- I2_batch.ag_use_plus
+
+#PC1
+write.table(phenos[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC2
+write.table(phenos[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_batch.ag_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_batch.ag_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_batch.ag_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+#PC3
+write.table(phenos[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_batch.ag_GxE_plink_phenos.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_batch.ag_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_batch.ag_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+
+
+#O_I1_GxE_chrnum_MAF.05
+#O_I2_GxE_chrnum_MAF.05
+
+PC1_I1_raw_GxE_plink_phenos.txt
+PC1_I1_raw_GxE_cov_gcta.txt
+PC1_I1_raw_GxE_env_gcta.txt
+
+
+
+#O_I1_GxE.batch_ag_chrnum_MAF.05
+#O_I2_GxE.batch_ag_chrnum_MAF.05
+
+PC1_I1_batch.ag_GxE_plink_phenos.txt
+PC1_I1_batch.ag_GxE_cov_gcta.txt
+PC1_I1_batch.ag_GxE_env_gcta.txt
+
+
+
+
+## calculate heritability for PCs 
+
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE_plink_phenos.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE_cov_gcta.txt \
+  --gxe /mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE_env_gcta.txt \
+  --reml \
+  --reml-lrt 2 \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE \
+  --thread-num 10
+
+
+
+
+
+## prep trait data
+
+# I1 RAW
+all_data_final[i==150]
+
+
+pheno_data_use_O_I1 <- all_data_final[i==150][group %in% c('O','ctrl_O')][instar == 1][treatment %in% c(0, 0.5)]
+pheno_data_use_O_I1[, id := GenoPLUS]
+pheno_data_use_O_I1[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+pheno_data_use_O_I2 <- all_data_final[i==150][group %in% c('O','ctrl_O')][instar == 2][treatment %in% c(0, 0.5)]
+pheno_data_use_O_I2[, id := GenoPLUS]
+pheno_data_use_O_I2[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+
+phenos <- pheno_data_use_O_I2
+
+						
+write.table(phenos[,c("id", "id", "length")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "max_height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_plink_max_height.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "eye")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_plink_eye.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "nteeth")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_plink_nteeth.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+	
+
+
+# I1 BATCH.AG
+all_data_final.batch_ag[i==150]
+
+pheno_data_use_O_I1 <- all_data_final.batch_ag[i==150][group %in% c('O','ctrl_O')][instar == 1][treatment %in% c(0, 0.5)]
+pheno_data_use_O_I1[, id := GENO_trt_batch]
+pheno_data_use_O_I1[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+pheno_data_use_O_I2 <- all_data_final.batch_ag[i==150][group %in% c('O','ctrl_O')][instar == 2][treatment %in% c(0, 0.5)]
+pheno_data_use_O_I2[, id := GENO_trt_batch]
+pheno_data_use_O_I2[, GxE_term := ifelse(treatment == 0, "ctrl", "juju")]
+
+
+phenos <- pheno_data_use_O_I1
+
+						
+write.table(phenos[,c("id", "id", "mean_length")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "mean_max_height")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_plink_max_height.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "mean_eye")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_plink_eye.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "median_nteeth")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_plink_nteeth.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+write.table(phenos[,c("id", "id", "batch")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_cov_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "GxE_term")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_env_gcta.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+
+
+
+## calculate heritability for PCs 
+
+
+max_height
+eye
+nteeth
+
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch.ag_plink_nteeth.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch.ag_cov_gcta.txt \
+  --gxe /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch.ag_env_gcta.txt \
+  --reml \
+  --reml-lrt 2 \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch.ag_nteeth \
+  --thread-num 10
+
+
+
+
+
+
+
+
+
+
+
+
+
+PCs_I1 <- PC_scores
+setnames(PCs_I1, c("cloneid_geno","Comp1","Comp2","Comp3"), c("Geno","PC1","PC2","PC3"))
+
+load(file='/mnt/pricey_4/doerthe/GRM_May2020/PC_scores_I2.RData')
+PCs_I2 <- PC_scores
+setnames(PCs_I2, c("cloneid_geno","Comp1","Comp2","Comp3"), c("Geno","PC1","PC2","PC3"))
+
+PCs_I1_I2 <- rbind(PCs_I1,PCs_I2)
+setkey(PCs_I1_I2, Geno)
+
+load(file = "/mnt/pricey_4/doerthe/GEOMORPH_out/all_data_final.RData")
+all_data_final
+setkey(all_data_final, Geno, i)
+
+PCs_I1_I2_use <- merge(PCs_I1_I2, all_data_final[i==150][, c("treatment","instar","SC_group","Geno","GenoPLUS")], by="Geno", all.x=T)
+
+
+
+
+## Os
+
+PCs_O_I1_0 <- PCs_I1_I2_use[SC_group %in% c('O','ctrl_O')][instar == 1][treatment == 0]
+PCs_O_I1_0[, id := GenoPLUS]
+
+PCs_O_I1_05 <- PCs_I1_I2_use[SC_group %in% c('O','ctrl_O')][instar == 1][treatment == 0.5]
+PCs_O_I1_05[, id := GenoPLUS]
+
+PCs_O_I2_0 <- PCs_I1_I2_use[SC_group %in% c('O','ctrl_O')][instar == 2][treatment == 0]
+PCs_O_I2_0[, id := GenoPLUS]
+
+PCs_O_I2_05 <- PCs_I1_I2_use[SC_group %in% c('O','ctrl_O')][instar == 2][treatment == 0.5]
+PCs_O_I2_05[, id := GenoPLUS]
+
+
+phenos <- PCs_O_I2_0
+
+write.table(phenos[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_0_PC1_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_0_PC2_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/O_I2_0_PC3_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+		
+
+## As
+
+PCs_A_I1_0 <- PCs_I1_I2_use[SC_group %in% c('A','ctrl_A')][instar == 1][treatment == 0]
+PCs_A_I1_0[, id := GenoPLUS]
+
+PCs_A_I1_05 <- PCs_I1_I2_use[SC_group %in% c('A','ctrl_A')][instar == 1][treatment == 0.5]
+PCs_A_I1_05[, id := GenoPLUS]
+
+PCs_A_I2_0 <- PCs_I1_I2_use[SC_group %in% c('A','ctrl_A')][instar == 2][treatment == 0]
+PCs_A_I2_0[, id := GenoPLUS]
+
+PCs_A_I2_05 <- PCs_I1_I2_use[SC_group %in% c('A','ctrl_A')][instar == 2][treatment == 0.5]
+PCs_A_I2_05[, id := GenoPLUS]
+
+phenos <- PCs_A_I2_0
+
+write.table(phenos[,c("id", "id", "PC1")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_0_PC1_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "PC2")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_0_PC2_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+write.table(phenos[,c("id", "id", "PC3")], paste0("/mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_0_PC3_plink_length.txt"), quote=F, sep="\t", row.names=F, col.names=F)
+
+
+
+
+## calculate heritability for PCs 
+
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch_ag_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/Os_data_cov/I2_GxE.batch_ag_plink_phenos_i$i.txt \
+  --covar /mnt/pricey_4/doerthe/GRM_May2020/Os_data_cov/I2_GxE.batch_ag_cov_gcta_i$i.txt \
+  --gxe /mnt/pricey_4/doerthe/GRM_May2020/Os_data_cov/I2_GxE.batch_ag_env_gcta_i$i.txt \
+  --reml \
+  --reml-lrt 2 \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/Os_h2out/I2_GxE.batch_ag_env_COVbatch_MAF_gcta_i$i \
+  --thread-num 10
+
+
+
+
+  /mnt/pricey_4/doerthe/gcta_1.92.1beta6/gcta64 \
+  --grm /mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_chrnum_MAF.05 \
+  --pheno /mnt/pricey_4/doerthe/GRM_May2020/PCs_traits/A_I2_0_PC3_plink_length.txt \
+  --reml \
+  --reml-alg 1 \
+  --out /mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_gcta_PC3 \
+  --thread-num 10
+
+
+############
+############
+############
+
+
+## plot h2
+
+## As
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/A_out_hsq.RData")
+
+
+A_gcta <- ggplot(gcta_out1[Source %in% c("V(e)")], aes(y=Variance, x=as.numeric(i))) +
+			  geom_ribbon(data=gcta_out1[Source %in% c("V(e)")], 
+  							aes(ymin = Variance-SE, ymax = Variance + SE), 
+  							fill = "grey70", linetype="dashed", size = 0.5) +
+			  geom_line(data=gcta_out1[Source %in% c("V(e)")], size = 1, col="grey50") +
+			  facet_wrap(~group, nrow=1) +  # scales = "free_y"
+			  #ylim(0, 0.00) +
+			  theme(legend.position="none", 
+                        panel.grid.major = element_blank(), 
+                        panel.grid.minor = element_blank(),
+                        panel.background = element_rect(fill = "transparent",colour = NA),
+                        plot.background = element_rect(fill = "transparent",colour = NA), 
+                        # strip.text.x = element_blank(),
+                        # axis.text.x = element_blank(), 
+                        axis.title.x = element_blank(), 
+                        axis.title.y = element_blank(),
+                        #axis.title.x = element_text(size=20,family='Arial'), 
+                        #axis.title.y = element_text(size=20, family='Arial'),
+                        axis.text = element_text(size=20, family='Arial'), 
+                        strip.text.x = element_text(size = 20, color = "black"),
+                        strip.text.y = element_text(size = 20, color = "black"))
+                        
+options(scipen=10000)
+print(A_gcta + ggtitle("A_gcta_qcovPCs_MAF.05") + scale_x_continuous(limits=c(0,650), breaks=c(0,300,600)))
+						
+
+## Os
+#load(file="/mnt/pricey_4/doerthe/GRM_May2020/O_out_hsq.RData")
+
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/h2_I1_GxE_out.RData")
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/h2_I2_GxE_out.RData")
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/h2_I1_GxE.ag_out.RData")
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/h2_I2_GxE.ag_out.RData")
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/h2_I1_GxE.batch_ag_out.RData")
+load(file="/mnt/pricey_4/doerthe/GRM_May2020/h2_I2_GxE.batch_ag_out.RData")
+
+
+ [1] "h2_estimate_I1_GxE_out"              
+ [2] "h2_estimate_I1_GxE_out.ag"           
+ [3] "h2_estimate_I1_GxE_out.batch_ag"     
+ [4] "h2_estimate_I2_GxE_out"              
+ [5] "h2_estimate_I2_GxE_out.ag"           
+ [6] "h2_estimate_I2_GxE_out.batch_ag"     
+ [7] "h2_perm.estimate_I1_GxE_out"         
+ [8] "h2_perm.estimate_I1_GxE_out.ag"      
+ [9] "h2_perm.estimate_I1_GxE_out.batch_ag"
+[10] "h2_perm.estimate_I2_GxE_out"         
+[11] "h2_perm.estimate_I2_GxE_out.ag"      
+[12] "h2_perm.estimate_I2_GxE_out.batch_ag"
+
+
+h2_out_all <- rbind(h2_estimate_I1_GxE_out,
+					h2_estimate_I1_GxE_out.ag,
+					h2_estimate_I1_GxE_out.batch_ag,
+					h2_estimate_I2_GxE_out,     
+					h2_estimate_I2_GxE_out.ag,  
+					h2_estimate_I2_GxE_out.batch_ag,
+					h2_perm.estimate_I1_GxE_out,
+					h2_perm.estimate_I1_GxE_out.ag,
+					h2_perm.estimate_I1_GxE_out.batch_ag,
+					h2_perm.estimate_I2_GxE_out,
+					h2_perm.estimate_I2_GxE_out.ag,
+					h2_perm.estimate_I2_GxE_out.batch_ag)
+
+h2_out_all[, lci := Variance-1.96*SE]
+h2_out_all[, uci := Variance+1.96*SE]
+
+
+
+
+# plot h2 for traits and PCs
+# A_length
+A_I1_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_length <- as.data.table(A_I1_0_length)
+A_I1_0_length[,group := 'A_I1_0']
+A_I1_0_length[,term := 'length']
+
+A_I1_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_length <- as.data.table(A_I1_05_length)
+A_I1_05_length[,group := 'A_I1_05']
+A_I1_05_length[,term := 'length']
+
+A_I2_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_length <- as.data.table(A_I2_0_length)
+A_I2_0_length[,group := 'A_I2_0']
+A_I2_0_length[,term := 'length']
+
+A_I2_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_length <- as.data.table(A_I2_05_length)
+A_I2_05_length[,group := 'A_I2_05']
+A_I2_05_length[,term := 'length']
+
+
+# A_eye
+A_I1_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_eye <- as.data.table(A_I1_0_eye)
+A_I1_0_eye[,group := 'A_I1_0']
+A_I1_0_eye[,term := 'eye']
+
+A_I1_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_eye <- as.data.table(A_I1_05_eye)
+A_I1_05_eye[,group := 'A_I1_05']
+A_I1_05_eye[,term := 'eye']
+
+A_I2_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_eye <- as.data.table(A_I2_0_eye)
+A_I2_0_eye[,group := 'A_I2_0']
+A_I2_0_eye[,term := 'eye']
+
+A_I2_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_eye <- as.data.table(A_I2_05_eye)
+A_I2_05_eye[,group := 'A_I2_05']
+A_I2_05_eye[,term := 'eye']
+
+
+# A_max_height
+A_I1_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_max_height <- as.data.table(A_I1_0_max_height)
+A_I1_0_max_height[,group := 'A_I1_0']
+A_I1_0_max_height[,term := 'max_height']
+
+A_I1_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_max_height <- as.data.table(A_I1_05_max_height)
+A_I1_05_max_height[,group := 'A_I1_05']
+A_I1_05_max_height[,term := 'max_height']
+
+A_I2_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_max_height <- as.data.table(A_I2_0_max_height)
+A_I2_0_max_height[,group := 'A_I2_0']
+A_I2_0_max_height[,term := 'max_height']
+
+A_I2_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_max_height <- as.data.table(A_I2_05_max_height)
+A_I2_05_max_height[,group := 'A_I2_05']
+A_I2_05_max_height[,term := 'max_height']
+
+
+# A_nteeth
+A_I1_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_nteeth <- as.data.table(A_I1_0_nteeth)
+A_I1_0_nteeth[,group := 'A_I1_0']
+A_I1_0_nteeth[,term := 'nteeth']
+
+A_I1_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_nteeth <- as.data.table(A_I1_05_nteeth)
+A_I1_05_nteeth[,group := 'A_I1_05']
+A_I1_05_nteeth[,term := 'nteeth']
+
+A_I2_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_nteeth <- as.data.table(A_I2_0_nteeth)
+A_I2_0_nteeth[,group := 'A_I2_0']
+A_I2_0_nteeth[,term := 'nteeth']
+
+A_I2_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_nteeth <- as.data.table(A_I2_05_nteeth)
+A_I2_05_nteeth[,group := 'A_I2_05']
+A_I2_05_nteeth[,term := 'nteeth']
+
+
+# PC1
+A_I1_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_0_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_gcta_PC1 <- as.data.table(A_I1_0_gcta_PC1)
+A_I1_0_gcta_PC1[,group := 'A_I1_0']
+A_I1_0_gcta_PC1[,term := 'PC1']
+
+A_I1_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_05_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_gcta_PC1 <- as.data.table(A_I1_05_gcta_PC1)
+A_I1_05_gcta_PC1[,group := 'A_I1_05']
+A_I1_05_gcta_PC1[,term := 'PC1']
+
+A_I2_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_gcta_PC1 <- as.data.table(A_I2_0_gcta_PC1)
+A_I2_0_gcta_PC1[,group := 'A_I2_0']
+A_I2_0_gcta_PC1[,term := 'PC1']
+
+A_I2_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_05_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_gcta_PC1 <- as.data.table(A_I2_05_gcta_PC1)
+A_I2_05_gcta_PC1[,group := 'A_I2_05']
+A_I2_05_gcta_PC1[,term := 'PC1']
+
+
+# PC2
+A_I1_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_0_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_gcta_PC2 <- as.data.table(A_I1_0_gcta_PC2)
+A_I1_0_gcta_PC2[,group := 'A_I1_0']
+A_I1_0_gcta_PC2[,term := 'PC2']
+
+A_I1_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_05_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_gcta_PC2 <- as.data.table(A_I1_05_gcta_PC2)
+A_I1_05_gcta_PC2[,group := 'A_I1_05']
+A_I1_05_gcta_PC2[,term := 'PC2']
+
+A_I2_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_gcta_PC2 <- as.data.table(A_I2_0_gcta_PC2)
+A_I2_0_gcta_PC2[,group := 'A_I2_0']
+A_I2_0_gcta_PC2[,term := 'PC2']
+
+A_I2_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_05_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_gcta_PC2 <- as.data.table(A_I2_05_gcta_PC2)
+A_I2_05_gcta_PC2[,group := 'A_I2_05']
+A_I2_05_gcta_PC2[,term := 'PC2']
+
+
+# PC3
+A_I1_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_0_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_0_gcta_PC3 <- as.data.table(A_I1_0_gcta_PC3)
+A_I1_0_gcta_PC3[,group := 'A_I1_0']
+A_I1_0_gcta_PC3[,term := 'PC3']
+
+A_I1_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I1_05_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+A_I1_05_gcta_PC3 <- as.data.table(A_I1_05_gcta_PC3)
+A_I1_05_gcta_PC3[,group := 'A_I1_05']
+A_I1_05_gcta_PC3[,term := 'PC3']
+
+A_I2_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_0_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_0_gcta_PC3 <- as.data.table(A_I2_0_gcta_PC3)
+A_I2_0_gcta_PC3[,group := 'A_I2_0']
+A_I2_0_gcta_PC3[,term := 'PC3']
+
+A_I2_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/A_I2_05_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+A_I2_05_gcta_PC3 <- as.data.table(A_I2_05_gcta_PC3)
+A_I2_05_gcta_PC3[,group := 'A_I2_05']
+A_I2_05_gcta_PC3[,term := 'PC3']
+
+
+
+
+# plot h2 for traits and PCs
+# O_length
+O_I1_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_length <- as.data.table(O_I1_0_length)
+O_I1_0_length[,group := 'O_I1_0']
+O_I1_0_length[,term := 'length']
+
+O_I1_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_length <- as.data.table(O_I1_05_length)
+O_I1_05_length[,group := 'O_I1_05']
+O_I1_05_length[,term := 'length']
+
+O_I2_0_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_length <- as.data.table(O_I2_0_length)
+O_I2_0_length[,group := 'O_I2_0']
+O_I2_0_length[,term := 'length']
+
+O_I2_05_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_05_COVbatch_MAF_gcta_length.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_length <- as.data.table(O_I2_05_length)
+O_I2_05_length[,group := 'O_I2_05']
+O_I2_05_length[,term := 'length']
+
+
+# O_eye
+O_I1_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_eye <- as.data.table(O_I1_0_eye)
+O_I1_0_eye[,group := 'O_I1_0']
+O_I1_0_eye[,term := 'eye']
+
+O_I1_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_eye <- as.data.table(O_I1_05_eye)
+O_I1_05_eye[,group := 'O_I1_05']
+O_I1_05_eye[,term := 'eye']
+
+O_I2_0_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_eye <- as.data.table(O_I2_0_eye)
+O_I2_0_eye[,group := 'O_I2_0']
+O_I2_0_eye[,term := 'eye']
+
+O_I2_05_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_05_COVbatch_MAF_gcta_eye.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_eye <- as.data.table(O_I2_05_eye)
+O_I2_05_eye[,group := 'O_I2_05']
+O_I2_05_eye[,term := 'eye']
+
+
+# O_max_height
+O_I1_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_max_height <- as.data.table(O_I1_0_max_height)
+O_I1_0_max_height[,group := 'O_I1_0']
+O_I1_0_max_height[,term := 'max_height']
+
+O_I1_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_max_height <- as.data.table(O_I1_05_max_height)
+O_I1_05_max_height[,group := 'O_I1_05']
+O_I1_05_max_height[,term := 'max_height']
+
+O_I2_0_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_max_height <- as.data.table(O_I2_0_max_height)
+O_I2_0_max_height[,group := 'O_I2_0']
+O_I2_0_max_height[,term := 'max_height']
+
+O_I2_05_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_05_COVbatch_MAF_gcta_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_max_height <- as.data.table(O_I2_05_max_height)
+O_I2_05_max_height[,group := 'O_I2_05']
+O_I2_05_max_height[,term := 'max_height']
+
+
+# O_nteeth
+O_I1_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_nteeth <- as.data.table(O_I1_0_nteeth)
+O_I1_0_nteeth[,group := 'O_I1_0']
+O_I1_0_nteeth[,term := 'nteeth']
+
+O_I1_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_nteeth <- as.data.table(O_I1_05_nteeth)
+O_I1_05_nteeth[,group := 'O_I1_05']
+O_I1_05_nteeth[,term := 'nteeth']
+
+O_I2_0_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_nteeth <- as.data.table(O_I2_0_nteeth)
+O_I2_0_nteeth[,group := 'O_I2_0']
+O_I2_0_nteeth[,term := 'nteeth']
+
+O_I2_05_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_05_COVbatch_MAF_gcta_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_nteeth <- as.data.table(O_I2_05_nteeth)
+O_I2_05_nteeth[,group := 'O_I2_05']
+O_I2_05_nteeth[,term := 'nteeth']
+
+
+# PC1
+O_I1_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_0_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_gcta_PC1 <- as.data.table(O_I1_0_gcta_PC1)
+O_I1_0_gcta_PC1[,group := 'O_I1_0']
+O_I1_0_gcta_PC1[,term := 'PC1']
+
+O_I1_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_05_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_gcta_PC1 <- as.data.table(O_I1_05_gcta_PC1)
+O_I1_05_gcta_PC1[,group := 'O_I1_05']
+O_I1_05_gcta_PC1[,term := 'PC1']
+
+O_I2_0_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_gcta_PC1 <- as.data.table(O_I2_0_gcta_PC1)
+O_I2_0_gcta_PC1[,group := 'O_I2_0']
+O_I2_0_gcta_PC1[,term := 'PC1']
+
+O_I2_05_gcta_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_05_gcta_PC1.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_gcta_PC1 <- as.data.table(O_I2_05_gcta_PC1)
+O_I2_05_gcta_PC1[,group := 'O_I2_05']
+O_I2_05_gcta_PC1[,term := 'PC1']
+
+
+# PC2
+O_I1_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_0_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_gcta_PC2 <- as.data.table(O_I1_0_gcta_PC2)
+O_I1_0_gcta_PC2[,group := 'O_I1_0']
+O_I1_0_gcta_PC2[,term := 'PC2']
+
+O_I1_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_05_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_gcta_PC2 <- as.data.table(O_I1_05_gcta_PC2)
+O_I1_05_gcta_PC2[,group := 'O_I1_05']
+O_I1_05_gcta_PC2[,term := 'PC2']
+
+O_I2_0_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_gcta_PC2 <- as.data.table(O_I2_0_gcta_PC2)
+O_I2_0_gcta_PC2[,group := 'O_I2_0']
+O_I2_0_gcta_PC2[,term := 'PC2']
+
+O_I2_05_gcta_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_05_gcta_PC2.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_gcta_PC2 <- as.data.table(O_I2_05_gcta_PC2)
+O_I2_05_gcta_PC2[,group := 'O_I2_05']
+O_I2_05_gcta_PC2[,term := 'PC2']
+
+
+# PC3
+O_I1_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_0_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_0_gcta_PC3 <- as.data.table(O_I1_0_gcta_PC3)
+O_I1_0_gcta_PC3[,group := 'O_I1_0']
+O_I1_0_gcta_PC3[,term := 'PC3']
+
+O_I1_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_05_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+O_I1_05_gcta_PC3 <- as.data.table(O_I1_05_gcta_PC3)
+O_I1_05_gcta_PC3[,group := 'O_I1_05']
+O_I1_05_gcta_PC3[,term := 'PC3']
+
+O_I2_0_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_0_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_0_gcta_PC3 <- as.data.table(O_I2_0_gcta_PC3)
+O_I2_0_gcta_PC3[,group := 'O_I2_0']
+O_I2_0_gcta_PC3[,term := 'PC3']
+
+O_I2_05_gcta_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_05_gcta_PC3.hsq", header=T, na.strings = "#NA", fill=T)
+O_I2_05_gcta_PC3 <- as.data.table(O_I2_05_gcta_PC3)
+O_I2_05_gcta_PC3[,group := 'O_I2_05']
+O_I2_05_gcta_PC3[,term := 'PC3']
+
+
+
+
+
+######
+
+# RAW
+# I1
+# length
+I1_raw_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE_length.hsq", header=T, na.strings = "#NA", fill=T)
+I1_raw_length <- as.data.table(I1_raw_length)
+I1_raw_length[,group := 'I1']
+I1_raw_length[,term := 'raw_length']
+I1_raw_length_use <- I1_raw_length[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# eye
+I1_raw_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE_eye.hsq", header=T, na.strings = "#NA", fill=T)
+I1_raw_eye <- as.data.table(I1_raw_eye)
+I1_raw_eye[,group := 'I1']
+I1_raw_eye[,term := 'raw_eye']
+I1_raw_eye_use <- I1_raw_eye[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# max_height
+I1_raw_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+I1_raw_max_height <- as.data.table(I1_raw_max_height)
+I1_raw_max_height[,group := 'I1']
+I1_raw_max_height[,term := 'raw_max_height']
+I1_raw_max_height_use <- I1_raw_max_height[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# nteeth
+I1_raw_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+I1_raw_nteeth <- as.data.table(I1_raw_nteeth)
+I1_raw_nteeth[,group := 'I1']
+I1_raw_nteeth[,term := 'raw_nteeth']
+I1_raw_nteeth_use <- I1_raw_nteeth[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+
+# I2
+# length
+I2_raw_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_length.hsq", header=T, na.strings = "#NA", fill=T)
+I2_raw_length <- as.data.table(I2_raw_length)
+I2_raw_length[,group := 'I2']
+I2_raw_length[,term := 'raw_length']
+I2_raw_length_use <- I2_raw_length[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# eye
+I2_raw_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_eye.hsq", header=T, na.strings = "#NA", fill=T)
+I2_raw_eye <- as.data.table(I2_raw_eye)
+I2_raw_eye[,group := 'I2']
+I2_raw_eye[,term := 'raw_eye']
+I2_raw_eye_use <- I2_raw_eye[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# max_height
+I2_raw_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+I2_raw_max_height <- as.data.table(I2_raw_max_height)
+I2_raw_max_height[,group := 'I2']
+I2_raw_max_height[,term := 'raw_max_height']
+I2_raw_max_height_use <- I2_raw_max_height[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# nteeth
+I2_raw_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+I2_raw_nteeth <- as.data.table(I2_raw_nteeth)
+I2_raw_nteeth[,group := 'I2']
+I2_raw_nteeth[,term := 'raw_nteeth']
+I2_raw_nteeth_use <- I2_raw_nteeth[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+
+# BATCH.AG
+# I1
+# length
+I1_batch.ag_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_length.hsq", header=T, na.strings = "#NA", fill=T)
+I1_batch.ag_length <- as.data.table(I1_batch.ag_length)
+I1_batch.ag_length[,group := 'I1']
+I1_batch.ag_length[,term := 'batch.ag_length']
+I1_batch.ag_length_use <- I1_batch.ag_length[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# eye
+I1_batch.ag_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_eye.hsq", header=T, na.strings = "#NA", fill=T)
+I1_batch.ag_eye <- as.data.table(I1_batch.ag_eye)
+I1_batch.ag_eye[,group := 'I1']
+I1_batch.ag_eye[,term := 'batch.ag_eye']
+I1_batch.ag_eye_use <- I1_batch.ag_eye[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# max_height
+I1_batch.ag_max_height <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_max_height.hsq", header=T, na.strings = "#NA", fill=T)
+I1_batch.ag_max_height <- as.data.table(I1_batch.ag_max_height)
+I1_batch.ag_max_height[,group := 'I1']
+I1_batch.ag_max_height[,term := 'batch.ag_max_height']
+I1_batch.ag_max_height_use <- I1_batch.ag_max_height[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# nteeth
+I1_batch.ag_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I1_GxE.batch.ag_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+I1_batch.ag_nteeth <- as.data.table(I1_batch.ag_nteeth)
+I1_batch.ag_nteeth[,group := 'I1']
+I1_batch.ag_nteeth[,term := 'batch.ag_nteeth']
+I1_batch.ag_nteeth_use <- I1_batch.ag_nteeth[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+
+# I2
+# length
+I2_batch.ag_length <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch.ag_length.hsq", header=T, na.strings = "#NA", fill=T)
+I2_batch.ag_length <- as.data.table(I2_batch.ag_length)
+I2_batch.ag_length[,group := 'I2']
+I2_batch.ag_length[,term := 'batch.ag_length']
+I2_batch.ag_length_use <- I2_batch.ag_length[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# eye
+I2_batch.ag_eye <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch.ag_eye.hsq", header=T, na.strings = "#NA", fill=T)
+I2_batch.ag_eye <- as.data.table(I2_batch.ag_eye)
+I2_batch.ag_eye[,group := 'I2']
+I2_batch.ag_eye[,term := 'batch.ag_eye']
+I2_batch.ag_eye_use <- I2_batch.ag_eye[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# max_height
+## model did not converge
+
+# nteeth
+I2_batch.ag_nteeth <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/O_I2_GxE.batch.ag_nteeth.hsq", header=T, na.strings = "#NA", fill=T)
+I2_batch.ag_nteeth <- as.data.table(I2_batch.ag_nteeth)
+I2_batch.ag_nteeth[,group := 'I2']
+I2_batch.ag_nteeth[,term := 'batch.ag_nteeth']
+I2_batch.ag_nteeth_use <- I2_batch.ag_nteeth[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+
+
+
+# RAW
+# I1
+# PC1
+I1_raw_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_raw_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I1_raw_PC1 <- as.data.table(I1_raw_PC1)
+I1_raw_PC1[,group := 'I1']
+I1_raw_PC1[,term := 'raw_PC1']
+I1_raw_PC1_use <- I1_raw_PC1[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC2
+I1_raw_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_raw_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I1_raw_PC2 <- as.data.table(I1_raw_PC2)
+I1_raw_PC2[,group := 'I1']
+I1_raw_PC2[,term := 'raw_PC2']
+I1_raw_PC2_use <- I1_raw_PC2[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC3
+I1_raw_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_raw_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I1_raw_PC3 <- as.data.table(I1_raw_PC3)
+I1_raw_PC3[,group := 'I1']
+I1_raw_PC3[,term := 'raw_PC3']
+I1_raw_PC3_use <- I1_raw_PC3[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# I2
+# PC1
+I2_raw_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_raw_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I2_raw_PC1 <- as.data.table(I2_raw_PC1)
+I2_raw_PC1[,group := 'I2']
+I2_raw_PC1[,term := 'raw_PC1']
+I2_raw_PC1_use <- I2_raw_PC1[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC2
+I2_raw_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_raw_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I2_raw_PC2 <- as.data.table(I2_raw_PC2)
+I2_raw_PC2[,group := 'I2']
+I2_raw_PC2[,term := 'raw_PC2']
+I2_raw_PC2_use <- I2_raw_PC2[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC3
+I2_raw_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_raw_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I2_raw_PC3 <- as.data.table(I2_raw_PC3)
+I2_raw_PC3[,group := 'I2']
+I2_raw_PC3[,term := 'raw_PC3']
+I2_raw_PC3_use <- I2_raw_PC3[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+
+
+# BATCH.AG
+# I1
+# PC1
+I1_batch.ag_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I1_batch.ag_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I1_batch.ag_PC1 <- as.data.table(I1_batch.ag_PC1)
+I1_batch.ag_PC1[,group := 'I1']
+I1_batch.ag_PC1[,term := 'batch.ag_PC1']
+I1_batch.ag_PC1_use <- I1_batch.ag_PC1[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC2
+I1_batch.ag_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I1_batch.ag_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I1_batch.ag_PC2 <- as.data.table(I1_batch.ag_PC2)
+I1_batch.ag_PC2[,group := 'I1']
+I1_batch.ag_PC2[,term := 'batch.ag_PC2']
+I1_batch.ag_PC2_use <- I1_batch.ag_PC2[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC3
+I1_batch.ag_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I1_batch.ag_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I1_batch.ag_PC3 <- as.data.table(I1_batch.ag_PC3)
+I1_batch.ag_PC3[,group := 'I1']
+I1_batch.ag_PC3[,term := 'batch.ag_PC3']
+I1_batch.ag_PC3_use <- I1_batch.ag_PC3[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# I2
+# PC1
+I2_batch.ag_PC1 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC1_I2_batch.ag_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I2_batch.ag_PC1 <- as.data.table(I2_batch.ag_PC1)
+I2_batch.ag_PC1[,group := 'I2']
+I2_batch.ag_PC1[,term := 'batch.ag_PC1']
+I2_batch.ag_PC1_use <- I2_batch.ag_PC1[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC2
+I2_batch.ag_PC2 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC2_I2_batch.ag_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I2_batch.ag_PC2 <- as.data.table(I2_batch.ag_PC2)
+I2_batch.ag_PC2[,group := 'I2']
+I2_batch.ag_PC2[,term := 'batch.ag_PC2']
+I2_batch.ag_PC2_use <- I2_batch.ag_PC2[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+# PC3
+I2_batch.ag_PC3 <- read.table("/mnt/pricey_4/doerthe/GRM_May2020/PC3_I2_batch.ag_GxE.hsq", header=T, na.strings = "#NA", fill=T)
+I2_batch.ag_PC3 <- as.data.table(I2_batch.ag_PC3)
+I2_batch.ag_PC3[,group := 'I2']
+I2_batch.ag_PC3[,term := 'batch.ag_PC3']
+I2_batch.ag_PC3_use <- I2_batch.ag_PC3[Source %in% c("V(G)/Vp","V(GxE)/Vp")]
+
+
+
+
+
+all_trait_data <- rbind(I1_raw_length_use,
+						I1_raw_eye_use,
+						I1_raw_max_height_use,
+						I1_raw_nteeth_use,
+						
+						I2_raw_length_use,
+						I2_raw_eye_use,
+						I2_raw_max_height_use,
+						I2_raw_nteeth_use,	
+						
+						I1_batch.ag_length_use,
+						I1_batch.ag_eye_use,
+						I1_batch.ag_max_height_use,
+						I1_batch.ag_nteeth_use,
+						
+						I2_batch.ag_length_use,
+						I2_batch.ag_eye_use,
+						I2_batch.ag_nteeth_use,
+						
+						I1_raw_PC1_use,
+						I1_raw_PC2_use,
+						I1_raw_PC3_use,
+
+						I2_raw_PC1_use,
+						I2_raw_PC2_use,
+						I2_raw_PC3_use,
+						
+						I1_batch.ag_PC1_use,
+						I1_batch.ag_PC2_use,
+						I1_batch.ag_PC3_use,
+
+						I2_batch.ag_PC1_use,
+						I2_batch.ag_PC2_use,
+						I2_batch.ag_PC3_use)
+
+all_trait_data[, Variance := as.numeric(as.character(Variance))]			
+all_trait_data[, SE := as.numeric(as.character(SE))]			
+all_trait_data[, SEmin := Variance - SE]
+all_trait_data[, SEmax := Variance + SE]
+
+
+all_traits_plot <- ggplot(all_trait_data[term %like% 'batch'], aes(x=as.factor(term), y=Variance)) +
+            			geom_bar(stat="identity", fill=c(rep(c("grey10","grey30","grey50","grey60","grey70","grey80", "grey90"),2),
+            											 rep(c("grey10","grey30","grey60","grey70","grey80", "grey90"),2))) +
+                  		geom_errorbar(aes(x=as.factor(term), ymin=SEmin, ymax=SEmax), width=0.1, colour="black", size=0.5) +
+                  		facet_wrap(~group~Source) +
+                  		theme(legend.position="none", 
+                  			panel.grid.major = element_blank(), 
+                  			panel.grid.minor = element_blank(),
+                  			panel.background = element_rect(fill = "transparent",colour = NA),
+                  			plot.background = element_rect(fill = "transparent",colour = NA), 
+                  			#strip.text.x = element_blank(),
+                  			#axis.text.x = element_blank(), 
+                  			axis.title.x = element_blank(), 
+                  			axis.title.y = element_blank(),
+                  			#axis.title.x = element_text(size=20,family='Arial'), 
+                  			#axis.title.y = element_text(size=20, family='Arial'),
+                  			axis.text = element_text(size=20, family='Arial'),
+                  			strip.text.x = element_text(size = 20, color = "black"),
+                  			strip.text.y = element_text(size = 20, color = "black"), 
+                  			axis.text.x = element_text(angle = 90)) 
+                  		
+all_traits_plot 
+	
+
+
+
+
+
+
+dorsal_height_plot <- ggplot(data = all_data[i==150], 
+                             aes(y=max_height, x=as.factor(treatment), color=as.factor(treatment))) + 
+  geom_beeswarm(size = 0.5, cex=1.5, priority='density', dodge.width=1) +  
+  geom_boxplot(fill="white", width=0.3, outlier.colour='grey', outlier.size = 0.1) +
+  facet_grid(~SC_group~instar_new) +
+  theme(legend.position="none", 
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA), 
+        #strip.text.x = element_blank(),
+        #axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(),
+        #axis.title.x = element_text(size=20,family='Arial'), 
+        #axis.title.y = element_text(size=20, family='Arial'),
+        axis.text = element_text(size=20, family='Arial'),
+        strip.text.x = element_text(size = 20, color = "black"),
+        strip.text.y = element_text(size = 20, color = "black")) 
+
+
+dorsal_height_plot + labs(x = "treatment", y = paste("dorsal height (mm)")) + scale_color_manual(values=c("#000000","#FF0000"))
+
+	
+
+
+
+
+
+###
+
+library(data.table)
+library(ggplot2)
+
+# MD & TC - pairwise distances
+
+load(file = "/scratch/db4ua/PhenoUVA_30March2020/shape_use.ag_filtered_final_02June2020.Rdata")  
+final_data
+
+A_clones <- unique(final_data[group %in% c("A")]$cloneid_geno)
+O_clones <- unique(final_data[group %in% c("O")]$cloneid_geno)
+
+#MD
+load(file="MD.OandA_I1.RData")
+MD_matrix
+
+MD_matrix_out <- as.data.table(MD_matrix)
+MD_matrix_out[, row_label := sub(":.*", "", rownames(MD_matrix))]
+MD_matrix_out[, col_label := sub(".*:", "", rownames(MD_matrix))]
+MD_matrix_out_adj <- MD_matrix_out[, c("row_label", "col_label", "d")]
+setkey(MD_matrix_out_adj, row_label, col_label)
+
+AvsA_I1 <- MD_matrix_out_adj[row_label %in% A_clones][col_label %in% A_clones]
+AvsA_I1[, contrast := 'AvsA']
+AvsA_I1[, instar := 'I1']
+
+OvsO_I1 <- MD_matrix_out_adj[row_label %in% O_clones][col_label %in% O_clones]
+OvsO_I1[, contrast := 'OvsO']
+OvsO_I1[, instar := 'I1']
+
+AvsO_I1 <- MD_matrix_out_adj[row_label %in% A_clones][col_label %in% O_clones]
+AvsO_I1[, contrast := 'AvsO']
+AvsO_I1[, instar := 'I1']
+
+
+load(file="MD.OandA_I2.RData")
+MD_matrix
+
+MD_matrix_out <- as.data.table(MD_matrix)
+MD_matrix_out[, row_label := sub(":.*", "", rownames(MD_matrix))]
+MD_matrix_out[, col_label := sub(".*:", "", rownames(MD_matrix))]
+MD_matrix_out_adj <- MD_matrix_out[, c("row_label", "col_label", "d")]  # Pairwise absolute differences in path distances
+setkey(MD_matrix_out_adj, row_label, col_label)
+
+AvsA_I2 <- MD_matrix_out_adj[row_label %in% A_clones][col_label %in% A_clones]
+AvsA_I2[, contrast := 'AvsA']
+AvsA_I2[, instar := 'I2']
+
+OvsO_I2 <- MD_matrix_out_adj[row_label %in% O_clones][col_label %in% O_clones]
+OvsO_I2[, contrast := 'OvsO']
+OvsO_I2[, instar := 'I2']
+
+AvsO_I2 <- MD_matrix_out_adj[row_label %in% A_clones][col_label %in% O_clones]
+AvsO_I2[, contrast := 'AvsO']
+AvsO_I2[, instar := 'I2']
+
+
+MD_all <- rbind(AvsA_I1,OvsO_I1,AvsO_I1,AvsA_I2,OvsO_I2,AvsO_I2)
+save(MD_all, file='MD_all.RData')
+
+
+#TC
+load(file="TC.OandA_I1.RData")
+TC_matrix
+
+TC_matrix_out <- as.data.table(TC_matrix)
+TC_matrix_out[, row_label := sub(":.*", "", rownames(TC_matrix))]
+TC_matrix_out[, col_label := sub(".*:", "", rownames(TC_matrix))]
+TC_matrix_out_adj <- TC_matrix_out[, c("row_label", "col_label", "r")]  # Pairwise correlations between trajectories
+setkey(TC_matrix_out_adj, row_label, col_label)
+
+AvsA_I1 <- TC_matrix_out_adj[row_label %in% A_clones][col_label %in% A_clones]
+AvsA_I1[, contrast := 'AvsA']
+AvsA_I1[, instar := 'I1']
+
+OvsO_I1 <- TC_matrix_out_adj[row_label %in% O_clones][col_label %in% O_clones]
+OvsO_I1[, contrast := 'OvsO']
+OvsO_I1[, instar := 'I1']
+
+AvsO_I1 <- TC_matrix_out_adj[row_label %in% A_clones][col_label %in% O_clones]
+AvsO_I1[, contrast := 'AvsO']
+AvsO_I1[, instar := 'I1']
+
+
+load(file="TC.OandA_I2.RData")
+TC_matrix
+
+TC_matrix_out <- as.data.table(TC_matrix)
+TC_matrix_out[, row_label := sub(":.*", "", rownames(TC_matrix))]
+TC_matrix_out[, col_label := sub(".*:", "", rownames(TC_matrix))]
+TC_matrix_out_adj <- TC_matrix_out[, c("row_label", "col_label", "r")]
+setkey(TC_matrix_out_adj, row_label, col_label)
+
+AvsA_I2 <- TC_matrix_out_adj[row_label %in% A_clones][col_label %in% A_clones]
+AvsA_I2[, contrast := 'AvsA']
+AvsA_I2[, instar := 'I2']
+
+OvsO_I2 <- TC_matrix_out_adj[row_label %in% O_clones][col_label %in% O_clones]
+OvsO_I2[, contrast := 'OvsO']
+OvsO_I2[, instar := 'I2']
+
+AvsO_I2 <- TC_matrix_out_adj[row_label %in% A_clones][col_label %in% O_clones]
+AvsO_I2[, contrast := 'AvsO']
+AvsO_I2[, instar := 'I2']
+
+
+TC_all <- rbind(AvsA_I1,OvsO_I1,AvsO_I1,AvsA_I2,OvsO_I2,AvsO_I2)
+save(TC_all, file='TC_all.RData')
+
+
+
+
+ggplot(data = TC_all, aes(y=r, x=as.factor(contrast), color=as.factor(instar))) + 
+  geom_boxplot(fill="white", width=0.3, outlier.colour='grey', outlier.size = 0.1) 
+
+
+
+

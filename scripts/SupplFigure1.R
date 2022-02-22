@@ -22,12 +22,13 @@ library(patchwork)
 
 # IBS
 
-load(file = "output/IBS.long.RData")
+# load(file = "output/IBS.long.RData")
+load(file = "output/IBS.long_new.RData")
 # ibs.long
 
-ibs.long_As <- ibs.long[SC.A == 'A'][SC.B == 'A'][! dist.noTri == 1][, 'IBS']
+ibs.long_As <- ibs.long[SC.A == 'A'][SC.B == 'A'][!IBS == 1][, 'IBS']  #[! dist.noTri == 1][, 'IBS']
 ibs.long_As[, set := "genetically similar"]
-ibs.long_Os <- ibs.long[!SC.A == 'A'][!SC.B == 'A'][! dist.noTri == 1][, 'IBS']
+ibs.long_Os <- ibs.long[!SC.A == 'A'][!SC.B == 'A'][!IBS == 1][, 'IBS'] #[! dist.noTri == 1][, 'IBS']
 ibs.long_Os[, set := "genetically unique"]
 
 ibs.long_use <- rbind(ibs.long_As,ibs.long_Os)
