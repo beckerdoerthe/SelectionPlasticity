@@ -216,6 +216,7 @@ setkey(H2_ratio_all_wide, i, instar, group)
 ## filter for O data only, yet including the VAoverVM ratio
 # add module info and make data long to merge data sets
 
+### M8
 # effect sizes
 effect_sizes <- height_ANOVA_wide_use #[group == 'cluster O']
 setkey(effect_sizes, i, instar, group)
@@ -230,19 +231,19 @@ effect_sizes[, module := ifelse(effect_sizes$instar == 'instar 1' & effect_sizes
 effect_sizes_long <- melt(effect_sizes, id.vars=c("i","instar","group","module")) 
 
 
-# H2 estimates
-H2_est <- AandO_H2_all_wide #[group == 'cluster O']
-setkey(H2_est, i, instar, group)
-
-H2_est[, module := ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(1:300), "module 1", 
-                                ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(301:600), 'module 2',
-                                       
-                                       ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(1:100), 'module 1',
-                                              ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(101:200), 'module 2',
-                                                     ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(201:600), 'module 3','NA')))))]
-
-H2_est_long <- melt(H2_est, id.vars=c("i","instar","group","module")) 
-
+# # H2 estimates
+# H2_est <- AandO_H2_all_wide #[group == 'cluster O']
+# setkey(H2_est, i, instar, group)
+# 
+# H2_est[, module := ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(1:300), "module 1", 
+#                                 ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(301:600), 'module 2',
+#                                        
+#                                        ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(1:100), 'module 1',
+#                                               ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(101:200), 'module 2',
+#                                                      ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(201:600), 'module 3','NA')))))]
+# 
+# H2_est_long <- melt(H2_est, id.vars=c("i","instar","group","module")) 
+# 
 
 # h2 estimates
 h2_est <- O_h2_all_wide
@@ -278,15 +279,324 @@ H2_VAoverVm_est_long <- melt(H2_VAoverVm_est, id.vars=c("i","instar","group","mo
 # H2_VAoverVm_est_long
 
 
-effectSize_heritability <- rbind(effect_sizes_long,
+effectSize_heritability <- as.data.table(rbind(effect_sizes_long,
                                  h2_est_long,
-                                 H2_est_long,
-                                 H2_VAoverVm_est_long)
+                                 H2_VAoverVm_est_long))
 
 effectSize_heritability[, module := as.factor(module)]
 
-# save(effectSize_heritability, file="effectSize_heritability.RData")
-load(file="output/effectSize_heritability.RData")
+
+save(effectSize_heritability, file="output/effectSize_heritability_M8.RData")
+
+
+
+### M9
+# effect sizes
+effect_sizes <- height_ANOVA_wide_use #[group == 'cluster O']
+setkey(effect_sizes, i, instar, group)
+
+effect_sizes[, module := ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(1:300), "module 1", 
+                                ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(301:600), 'module 2',
+                                       
+                                       ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(1:100), 'module 1',
+                                              ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(101:330), 'module 2',
+                                                     ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(331:600), 'module 3','NA')))))]
+
+effect_sizes_long <- melt(effect_sizes, id.vars=c("i","instar","group","module")) 
+
+
+# # H2 estimates
+# H2_est <- AandO_H2_all_wide #[group == 'cluster O']
+# setkey(H2_est, i, instar, group)
+# 
+# H2_est[, module := ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(1:300), "module 1", 
+#                                 ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(301:600), 'module 2',
+#                                        
+#                                        ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(1:100), 'module 1',
+#                                               ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(101:200), 'module 2',
+#                                                      ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(201:600), 'module 3','NA')))))]
+# 
+# H2_est_long <- melt(H2_est, id.vars=c("i","instar","group","module")) 
+# 
+
+# h2 estimates
+h2_est <- O_h2_all_wide
+setkey(h2_est, i, instar, group)
+
+h2_est[, module := ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(1:300), "module 1", 
+                          ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(301:600), 'module 2',
+                                 
+                                 ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(1:100), 'module 1',
+                                        ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(101:330), 'module 2',
+                                               ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(331:600), 'module 3','NA')))))]
+
+h2_est_long <- melt(h2_est, id.vars=c("i","instar","group","module")) 
+
+
+# VAoverVM estimates
+H2_VAoverVm_est <- H2_ratio_all_wide
+setkey(H2_VAoverVm_est, i, instar, group)
+
+H2_VAoverVm_est[, module := ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(1:300), "module 1", 
+                                   ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(301:600), 'module 2',
+                                          
+                                          ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(1:100), 'module 1',
+                                                 ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(101:330), 'module 2',
+                                                        ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(331:600), 'module 3','NA')))))]
+
+H2_VAoverVm_est_long <- melt(H2_VAoverVm_est, id.vars=c("i","instar","group","module")) 
+
+
+# effect_sizes_long
+# h2_est_long
+# H2_est_long
+# H2_VAoverVm_est_long
+
+
+effectSize_heritability <- as.data.table(rbind(effect_sizes_long,
+                                               h2_est_long,
+                                               H2_VAoverVm_est_long))
+
+effectSize_heritability[, module := as.factor(module)]
+
+save(effectSize_heritability, file="output/effectSize_heritability_M9.RData")
+
+
+
+### M11
+# effect sizes
+effect_sizes <- height_ANOVA_wide_use #[group == 'cluster O']
+setkey(effect_sizes, i, instar, group)
+
+effect_sizes[, module := ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(1:300), "module 1", 
+                                ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(301:600), 'module 2',
+                                       
+                                       ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(1:100), 'module 1',
+                                              ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(101:200), 'module 2',
+                                                     ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(201:350), 'module 3',
+                                                            ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(351:600), 'module 4','NA'))))))]
+
+
+effect_sizes_long <- melt(effect_sizes, id.vars=c("i","instar","group","module")) 
+
+
+# # H2 estimates
+# H2_est <- AandO_H2_all_wide #[group == 'cluster O']
+# setkey(H2_est, i, instar, group)
+# 
+# H2_est[, module := ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(1:300), "module 1", 
+#                                 ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(301:600), 'module 2',
+#                                        
+#                                        ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(1:100), 'module 1',
+#                                               ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(101:200), 'module 2',
+#                                                      ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(201:600), 'module 3','NA')))))]
+# 
+# H2_est_long <- melt(H2_est, id.vars=c("i","instar","group","module")) 
+# 
+
+# h2 estimates
+h2_est <- O_h2_all_wide
+setkey(h2_est, i, instar, group)
+
+h2_est[, module := ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(1:300), "module 1", 
+                          ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(301:600), 'module 2',
+                                 
+                                 ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(1:100), 'module 1',
+                                        ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(101:200), 'module 2',
+                                               ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(201:350), 'module 3',
+                                                      ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(351:600), 'module 4','NA'))))))]
+
+h2_est_long <- melt(h2_est, id.vars=c("i","instar","group","module")) 
+
+
+# VAoverVM estimates
+H2_VAoverVm_est <- H2_ratio_all_wide
+setkey(H2_VAoverVm_est, i, instar, group)
+
+H2_VAoverVm_est[, module := ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(1:300), "module 1", 
+                                   ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(301:600), 'module 2',
+                                          
+                                          ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(1:100), 'module 1',
+                                                 ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(101:200), 'module 2',
+                                                        ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(201:350), 'module 3',
+                                                               ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(351:600), 'module 4','NA'))))))]
+
+H2_VAoverVm_est_long <- melt(H2_VAoverVm_est, id.vars=c("i","instar","group","module")) 
+
+
+# effect_sizes_long
+# h2_est_long
+# H2_est_long
+# H2_VAoverVm_est_long
+
+
+effectSize_heritability <- as.data.table(rbind(effect_sizes_long,
+                                               h2_est_long,
+                                               H2_VAoverVm_est_long))
+
+effectSize_heritability[, module := as.factor(module)]
+
+save(effectSize_heritability, file="output/effectSize_heritability_M11.RData")
+
+
+
+
+### M12
+# effect sizes
+effect_sizes <- height_ANOVA_wide_use #[group == 'cluster O']
+setkey(effect_sizes, i, instar, group)
+
+effect_sizes[, module := ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(1:300), "module 1", 
+                                ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(301:600), 'module 2',
+                                       
+                                       ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(1:100), 'module 1',
+                                              ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(101:200), 'module 2',
+                                                     ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(201:300), 'module 3',
+                                                            ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(301:600), 'module 4','NA'))))))]
+
+
+effect_sizes_long <- melt(effect_sizes, id.vars=c("i","instar","group","module")) 
+
+
+# # H2 estimates
+# H2_est <- AandO_H2_all_wide #[group == 'cluster O']
+# setkey(H2_est, i, instar, group)
+# 
+# H2_est[, module := ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(1:300), "module 1", 
+#                                 ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(301:600), 'module 2',
+#                                        
+#                                        ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(1:100), 'module 1',
+#                                               ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(101:200), 'module 2',
+#                                                      ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(201:600), 'module 3','NA')))))]
+# 
+# H2_est_long <- melt(H2_est, id.vars=c("i","instar","group","module")) 
+# 
+
+# h2 estimates
+h2_est <- O_h2_all_wide
+setkey(h2_est, i, instar, group)
+
+h2_est[, module := ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(1:300), "module 1", 
+                          ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(301:600), 'module 2',
+                                 
+                                 ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(1:100), 'module 1',
+                                        ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(101:200), 'module 2',
+                                               ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(201:300), 'module 3',
+                                                      ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(301:600), 'module 4','NA'))))))]
+
+h2_est_long <- melt(h2_est, id.vars=c("i","instar","group","module")) 
+
+
+# VAoverVM estimates
+H2_VAoverVm_est <- H2_ratio_all_wide
+setkey(H2_VAoverVm_est, i, instar, group)
+
+H2_VAoverVm_est[, module := ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(1:300), "module 1", 
+                                   ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(301:600), 'module 2',
+                                          
+                                          ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(1:100), 'module 1',
+                                                 ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(101:200), 'module 2',
+                                                        ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(201:300), 'module 3',
+                                                               ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(301:600), 'module 4','NA'))))))]
+
+H2_VAoverVm_est_long <- melt(H2_VAoverVm_est, id.vars=c("i","instar","group","module")) 
+
+
+# effect_sizes_long
+# h2_est_long
+# H2_est_long
+# H2_VAoverVm_est_long
+
+
+effectSize_heritability <- as.data.table(rbind(effect_sizes_long,
+                                               h2_est_long,
+                                               H2_VAoverVm_est_long))
+
+effectSize_heritability[, module := as.factor(module)]
+
+save(effectSize_heritability, file="output/effectSize_heritability_M12.RData")
+
+
+
+### M13
+# effect sizes
+effect_sizes <- height_ANOVA_wide_use #[group == 'cluster O']
+setkey(effect_sizes, i, instar, group)
+
+effect_sizes[, module := ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(1:300), "module 1", 
+                                ifelse(effect_sizes$instar == 'instar 1' & effect_sizes$i %in% c(301:600), 'module 2',
+                                       
+                                       ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(1:100), 'module 1',
+                                              ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(101:200), 'module 2',
+                                                     ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(201:250), 'module 3',
+                                                            ifelse(effect_sizes$instar == 'instar 2' & effect_sizes$i %in% c(251:600), 'module 4','NA'))))))]
+
+
+effect_sizes_long <- melt(effect_sizes, id.vars=c("i","instar","group","module")) 
+
+
+# # H2 estimates
+# H2_est <- AandO_H2_all_wide #[group == 'cluster O']
+# setkey(H2_est, i, instar, group)
+# 
+# H2_est[, module := ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(1:300), "module 1", 
+#                                 ifelse(H2_est$instar == 'instar 1' & H2_est$i %in% c(301:600), 'module 2',
+#                                        
+#                                        ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(1:100), 'module 1',
+#                                               ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(101:200), 'module 2',
+#                                                      ifelse(H2_est$instar == 'instar 2' & H2_est$i %in% c(201:600), 'module 3','NA')))))]
+# 
+# H2_est_long <- melt(H2_est, id.vars=c("i","instar","group","module")) 
+# 
+
+# h2 estimates
+h2_est <- O_h2_all_wide
+setkey(h2_est, i, instar, group)
+
+h2_est[, module := ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(1:300), "module 1", 
+                          ifelse(h2_est$instar == 'instar 1' & h2_est$i %in% c(301:600), 'module 2',
+                                 
+                                 ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(1:100), 'module 1',
+                                        ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(101:200), 'module 2',
+                                               ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(201:250), 'module 3',
+                                                      ifelse(h2_est$instar == 'instar 2' & h2_est$i %in% c(251:600), 'module 4','NA'))))))]
+
+h2_est_long <- melt(h2_est, id.vars=c("i","instar","group","module")) 
+
+
+# VAoverVM estimates
+H2_VAoverVm_est <- H2_ratio_all_wide
+setkey(H2_VAoverVm_est, i, instar, group)
+
+H2_VAoverVm_est[, module := ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(1:300), "module 1", 
+                                   ifelse(H2_VAoverVm_est$instar == 'instar 1' & H2_VAoverVm_est$i %in% c(301:600), 'module 2',
+                                          
+                                          ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(1:100), 'module 1',
+                                                 ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(101:200), 'module 2',
+                                                        ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(201:250), 'module 3',
+                                                               ifelse(H2_VAoverVm_est$instar == 'instar 2' & H2_VAoverVm_est$i %in% c(251:600), 'module 4','NA'))))))]
+
+H2_VAoverVm_est_long <- melt(H2_VAoverVm_est, id.vars=c("i","instar","group","module")) 
+
+
+# effect_sizes_long
+# h2_est_long
+# H2_est_long
+# H2_VAoverVm_est_long
+
+
+effectSize_heritability <- as.data.table(rbind(effect_sizes_long,
+                                               h2_est_long,
+                                               H2_VAoverVm_est_long))
+
+effectSize_heritability[, module := as.factor(module)]
+
+save(effectSize_heritability, file="output/effectSize_heritability_M13.RData")
+
+
+
+
+# load(file="output/effectSize_heritability.RData")
 
 
 ## plot data

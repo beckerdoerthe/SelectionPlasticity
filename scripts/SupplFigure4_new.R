@@ -31,18 +31,18 @@ setkey(all_data_use_wide, Geno)
 
 # load(file = "output/ta_out.OandA_I1_16June_fitted.RData")
 load(file = "output/ta_out.OandA_I2_16June_fitted.RData")
-## data ist from ....
-# load(file="ta_out.OandA_I2_16June.RData")
-# 
-# ta_out
-# 
-# ta_out_red <- as.data.table(ta_out$fit$LM$fitted)
-# ta_out_red[, Geno := rownames(ta_out$fit$LM$fitted)]
-# ta_out_red_mod <- ta_out_red %>% select(Geno, everything())
-# 
-# save(ta_out_red, ta_out_red_mod, file = "ta_out.OandA_I2_16June_fitted.RData")
+## ta output data is from ....
+## load(file="ta_out.OandA_I2_16June.RData")
+## ta_out
+## 
+## ta_out_red <- as.data.table(ta_out$fit$LM$fitted)
+## ta_out_red[, Geno := rownames(ta_out$fit$LM$fitted)]
+## ta_out_red_mod <- ta_out_red %>% select(Geno, everything())
+## 
+## save(ta_out_red, ta_out_red_mod, file = "ta_out.OandA_I2_16June_fitted.RData")
 
 ta_out_red_use <- ta_out_red_mod[ta_out_red$Geno %in% all_data_use_wide$Geno][,c(1, 20:1201)]  ## use only 591 data points & GenoIDs that are in the full data set that was used for other analyses
+
 
 # procrustes data to use - "ta_out$fit$LM$fitted"
 tmp_data_adj <- ta_out_red_use
@@ -70,6 +70,7 @@ land.gps.body_1 <- c(rep('a',291),rep('b',300))
 MT_body_1 <- modularity.test(gpa_trans_adj$coords,
                               land.gps.body_1, 
                               CI=FALSE, iter=999)
+
 
 save(MT_body_1, file = 'output/Mod1_MT_O_I2.RData')
 
@@ -145,7 +146,7 @@ save(MT_body_8, file = 'output/Mod8_MT_O_I2.RData')
 
 
 ## Model 9
-land.gps.body_9 <- c(rep('a',91),rep('b',50),rep('c',450))
+land.gps.body_9 <- c(rep('a',91),rep('b',230),rep('c',270))
 
 MT_body_9 <- modularity.test(gpa_trans_adj$coords,
                              land.gps.body_9, 
@@ -204,6 +205,7 @@ MT_body_14 <- modularity.test(gpa_trans_adj$coords,
 save(MT_body_14, file = 'output/Mod14_MT_O_I2.RData')
 
 
+
 load(file = 'output/Mod1_MT_O_I2.RData')
 load(file = 'output/Mod2_MT_O_I2.RData')
 load(file = 'output/Mod3_MT_O_I2.RData')
@@ -220,40 +222,88 @@ load(file = 'output/Mod13_MT_O_I2.RData')
 load(file = 'output/Mod14_MT_O_I2.RData')
 
 
-#compare models 1-8
-model_1.14 <- compare.CR(MT_body_1,
-                        MT_body_2,
-                        MT_body_3,
-                        MT_body_4,
-                        MT_body_5,
-                        MT_body_6,
-                        MT_body_7, 
-                        MT_body_8, 
-                        MT_body_9,
-                        MT_body_10,
-                        MT_body_11,
-                        MT_body_12,
-                        MT_body_13,
-                        MT_body_14)
-
-model_1.14NULL <- compare.CR(MT_body_1,
-                            MT_body_2,
-                            MT_body_3,
-                            MT_body_4,
-                            MT_body_5,
+#compare models
+model_11vs6_NULL <- compare.CR(MT_body_11,
                             MT_body_6,
-                            MT_body_7, 
-                            MT_body_8,
-                            MT_body_9,
-                            MT_body_10,
-                            MT_body_11,
-                            MT_body_12,
-                            MT_body_13,
-                            MT_body_14,
                             CR.null = TRUE)
 
+model_11vs7_NULL <- compare.CR(MT_body_11,
+                               MT_body_7,
+                               CR.null = TRUE)
+
+model_11vs8_NULL <- compare.CR(MT_body_11,
+                               MT_body_8,
+                               CR.null = TRUE)
+
+model_11vs9_NULL <- compare.CR(MT_body_11,
+                               MT_body_9,
+                               CR.null = TRUE)
+
+model_11vs10_NULL <- compare.CR(MT_body_11,
+                               MT_body_10,
+                               CR.null = TRUE)
+
+model_11vs12_NULL <- compare.CR(MT_body_11,
+                               MT_body_12,
+                               CR.null = TRUE)
+
+model_11vs13_NULL <- compare.CR(MT_body_11,
+                                MT_body_13,
+                                CR.null = TRUE)
+
+model_11vs14_NULL <- compare.CR(MT_body_11,
+                                MT_body_14,
+                                CR.null = TRUE)
 
 
+
+p <- model_11vs14_NULL$pairwise.P[-1, -1]  ## ignore NULL model
+
+p_adjust <- p.adjust(p, method = "bonferroni", n = length(p))
+
+p_adjust_matrix <- matrix(p_adjust, nrow = 2, ncol = 2)
+
+
+### all modules together
+model_11vs1.2.3.4.5.6.7.8.9.10.12.13_NULL <- compare.CR(MT_body_11,
+                                              
+                              MT_body_1,
+                              MT_body_2,
+                              MT_body_3,
+                              MT_body_4,
+                              MT_body_5,
+                                                             
+                               MT_body_6,
+                               MT_body_7,
+                               MT_body_8,
+                               MT_body_9,
+                               MT_body_10,
+                               MT_body_12,
+                               MT_body_13,
+                               CR.null = TRUE)
+
+
+p <- model_11vs1.2.3.4.5.6.7.8.9.10.12.13_NULL$pairwise.P[-1, -1]  ## ignore NULL model
+p
+
+p_adjust <- p.adjust(p, method = "bonferroni", n = length(p))
+p_adjust
+
+p_adjust_matrix <- matrix(p_adjust, nrow = 13, ncol = 13)
+p_adjust_matrix
+
+
+
+
+
+model_subset2_NULL <- compare.CR(MT_body_8,
+                                 MT_body_11,
+                                 CR.null = TRUE)
+
+p <- model_subset2_NULL$pairwise.P[-1, -1]
+p
+p_adjust <- p.adjust(p, method = "bonferroni", n = length(p))
+p_adjust
 
 #### old version ####
 

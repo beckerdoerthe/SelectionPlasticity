@@ -38,8 +38,8 @@ all_data_final.ag <- all_data_final[i <= 600][, list(height = mean(height)), lis
 
 ag.line_plot <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"],  aes(x=i, y=height)) +   
   
-                    geom_line(data = all_data_final.ag[treatment == 0][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1.5, colour = "black") + 
-                    geom_line(data = all_data_final.ag[treatment == 0.5][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1.5, colour = "red") + 
+                    geom_line(data = all_data_final.ag[treatment == 0][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1, colour = "black") + 
+                    geom_line(data = all_data_final.ag[treatment == 0.5][SC_group_new == "cluster O"],  aes(x=i, y=height), size = 1, colour = "red") + 
                     
                     ylim(0, 0.28) +
                     
@@ -47,8 +47,8 @@ ag.line_plot <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"],  a
                     
                     theme(legend.position="none", 
                           rect = element_rect(fill = "transparent"),
-                          panel.grid.major = element_line(colour = "grey70", size=0.25),
-                          panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                          # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                          # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                           panel.background = element_rect(fill = "transparent",colour = NA),
                           plot.background = element_rect(fill = "transparent",colour = NA), 
                           #strip.text.x = element_blank(),
@@ -56,31 +56,31 @@ ag.line_plot <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"],  a
                           #axis.title.x = element_blank(), 
                           #axis.title.y = element_blank(),
                           axis.line = element_line(size = 1),
-                          axis.title.x = element_text(size=15,family='Arial'), 
-                          axis.title.y = element_text(size=15, family='Arial'),
-                          axis.text = element_text(size=15, family='Arial'),
-                          strip.text.x = element_text(size = 15, color = "black"),
-                          strip.text.y = element_text(size = 15, color = "black"),
+                          axis.title.x = element_text(size=11), 
+                          axis.title.y = element_text(size=11),
+                          axis.text = element_text(size=11),
+                          strip.text.x = element_text(size = 11, color = "black"),
+                          strip.text.y = element_text(size = 11, color = "black"),
                           panel.spacing.x = unit(6, "mm"),
                           panel.spacing.y = unit(6, "mm")) 
 
 
 # tiff(file = "avg_shape_plot.tiff", width = 3200, height = 3200, units = "px", res = 800)
-ag.line_plot  + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000"))
+ag.line_plot  + labs(x = "dorsal position", y = "dorsal height [mm]") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000"))
 # dev.off()
 
 ## FREQUENCY MAX HEIGHT
 hist_plot <- ggplot(data = all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height],  aes(x=i)) +   
   
-                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][treatment == 0.5], aes(x=i), bins = 50, fill='#ff4c4c', color='#FF0000', alpha=0.2, size=0.5) + 
-                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][treatment == 0], aes(x=i), bins = 50, fill='#C0C0C0', color='#000000', alpha=0.2, size=0.5) + 
+                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][treatment == 0.5], aes(x=i), bins = 50, fill='#ff4c4c',alpha=0.2, color='#FF0000', size=0.5) +  
+                    geom_histogram(data=all_data_final[i <= 600][SC_group_new == "cluster O"][max_height_new == height][treatment == 0], aes(x=i), bins = 50, fill='#C0C0C0', alpha=0.2, color='#000000', size=0.5) +   
                     
                     facet_wrap(~instar_new, ncol=1) +
                     
                     theme(legend.position="none", 
                           rect = element_rect(fill = "transparent"),
-                          panel.grid.major = element_line(colour = "grey70", size=0.25),
-                          panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                          # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                          # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                           panel.background = element_rect(fill = "transparent",colour = NA),
                           plot.background = element_rect(fill = "transparent",colour = NA), 
                           #strip.text.x = element_blank(),
@@ -88,11 +88,11 @@ hist_plot <- ggplot(data = all_data_final[i <= 600][SC_group_new == "cluster O"]
                           #axis.title.x = element_blank(), 
                           #axis.title.y = element_blank(),
                           axis.line = element_line(size = 1),
-                          axis.title.x = element_text(size=15,family='Arial'), 
-                          axis.title.y = element_text(size=15, family='Arial'),
-                          axis.text = element_text(size=15, family='Arial'),
-                          strip.text.x = element_text(size = 15, color = "black"),
-                          strip.text.y = element_text(size = 15, color = "black"),
+                          axis.title.x = element_text(size=11), 
+                          axis.title.y = element_text(size=11),
+                          axis.text = element_text(size=11),
+                          strip.text.x = element_text(size = 11, color = "black"),
+                          strip.text.y = element_text(size = 11, color = "black"),
                           panel.spacing.x = unit(6, "mm"),
                           panel.spacing.y = unit(6, "mm")) 
 
@@ -120,13 +120,13 @@ chisq.test(table(all_data_final[i <= 300][SC_group_new == "cluster A"][max_heigh
 ## MAX HEIGHT
 dorsal_height_plot <- ggplot(data = all_data_final[i==150][SC_group == "O"],   
                              aes(y=max_height_new, x=as.factor(treatment_new), color=as.factor(treatment_new))) + 
-                        geom_beeswarm(size = 0.5, cex=1.5, priority='density', dodge.width=1) +  
+                        geom_beeswarm(size = 0.3, cex=1.5, priority='density', dodge.width=1) +  
                         geom_boxplot(fill="white", width=0.3, outlier.colour='grey', outlier.size = 0.1) +
                         facet_wrap(~instar_new, ncol = 1) +
                         theme(legend.position="none", 
                               rect = element_rect(fill = "transparent"),
-                              panel.grid.major = element_line(colour = "grey70", size=0.25),
-                              panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                              # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                              # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                               panel.background = element_rect(fill = "transparent",colour = NA),
                               plot.background = element_rect(fill = "transparent",colour = NA), 
                               #strip.text.x = element_blank(),
@@ -134,11 +134,11 @@ dorsal_height_plot <- ggplot(data = all_data_final[i==150][SC_group == "O"],
                               #axis.title.x = element_blank(), 
                               #axis.title.y = element_blank(),
                               axis.line = element_line(size = 1),
-                              axis.title.x = element_text(size=15,family='Arial'), 
-                              axis.title.y = element_text(size=15, family='Arial'),
-                              axis.text = element_text(size=15, family='Arial'),
-                              strip.text.x = element_text(size = 15, color = "black"),
-                              strip.text.y = element_text(size = 15, color = "black"),
+                              axis.title.x = element_text(size=11), 
+                              axis.title.y = element_text(size=11),
+                              axis.text = element_text(size=11),
+                              strip.text.x = element_text(size = 11, color = "black"),
+                              strip.text.y = element_text(size = 11, color = "black"),
                               panel.spacing.x = unit(6, "mm"),
                               panel.spacing.y = unit(6, "mm")) 
 
@@ -248,8 +248,8 @@ nteeth_plot <- ggplot(data = nteeth_number[SC_group_new == "cluster O"],
                   facet_wrap(~instar_new, ncol=1) +
                   theme(legend.position="none", 
                         rect = element_rect(fill = "transparent"),
-                        panel.grid.major = element_line(colour = "grey70", size=0.25),
-                        panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                        # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                        # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                         panel.background = element_rect(fill = "transparent",colour = NA),
                         plot.background = element_rect(fill = "transparent",colour = NA), 
                         #strip.text.x = element_blank(),
@@ -257,11 +257,11 @@ nteeth_plot <- ggplot(data = nteeth_number[SC_group_new == "cluster O"],
                         #axis.title.x = element_blank(), 
                         #axis.title.y = element_blank(),
                         axis.line = element_line(size = 1),
-                        axis.title.x = element_text(size=15,family='Arial'), 
-                        axis.title.y = element_text(size=15, family='Arial'),
-                        axis.text = element_text(size=15, family='Arial'),
-                        strip.text.x = element_text(size = 15, color = "black"),
-                        strip.text.y = element_text(size = 15, color = "black"),
+                        axis.title.x = element_text(size=11), 
+                        axis.title.y = element_text(size=11),
+                        axis.text = element_text(size=11),
+                        strip.text.x = element_text(size = 11, color = "black"),
+                        strip.text.y = element_text(size = 11, color = "black"),
                         panel.spacing.x = unit(6, "mm"),
                         panel.spacing.y = unit(6, "mm")) 
 
@@ -288,7 +288,7 @@ chisq.test(table(all_data_final[i == 150][SC_group_new == "cluster A"][instar_ne
 ########
 ########
 
-ag.line_plot  + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000"))
+ag.line_plot  + labs(x = "dorsal position", y = "dorsal height [mm]") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000"))
 
 hist_plot + labs(x = "dorsal position", y = "frequency") + scale_x_continuous(breaks=c(0,150,300))
 
@@ -297,7 +297,7 @@ dorsal_height_plot + labs(x = "treatment", y = paste("max dorsal height [mm]")) 
 nteeth_plot + labs(x = "# of neckteeth", y = "[%]") + scale_x_continuous(limits=c(-0.5,4.5)) + scale_fill_manual(values=c("#000000","#FF0000"))
 
 
-patchwork_plots_induction <- ag.line_plot + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000")) + 
+patchwork_plots_induction <- ag.line_plot + labs(x = "dorsal position", y = "dorsal height [mm]") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000")) + 
   hist_plot + labs(x = "dorsal position", y = "frequency") + scale_x_continuous(breaks=c(0,150,300)) + 
   dorsal_height_plot + labs(x = "treatment", y = paste("max dorsal height [mm]")) + scale_color_manual(values=c("#000000","#FF0000")) +
   nteeth_plot + labs(x = "# of neckteeth", y = "[%]") + scale_x_continuous(limits=c(-0.5,4.5)) + scale_fill_manual(values=c("#000000","#FF0000")) +
@@ -305,87 +305,117 @@ patchwork_plots_induction <- ag.line_plot + labs(x = "dorsal position", y = "dor
 
 patchwork_plots_induction
 
+# ggsave("patchwork_plots_induction_traits_As.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
+# Saving 16.9 x 6.11 in image == 1217 - 439
 
+# setEPS()
+# postscript("Fig2.1_revised_NEU.eps", colormodel = "RGB", width = 12.17, height = 4.39)
+# plot(patchwork_plots_induction)
+# dev.off()
+
+ggsave("Fig2.1_revised_NEW_NEW.eps", fallback_resolution = 600, device = cairo_ps, width = 12.17, height = 4.39)  # Saving 16.9 x 6.11 in image
+# ggsave("Fig2.1_Legend.eps", fallback_resolution = 600, device = cairo_ps, width = 12.17, height = 4.39)  # Saving 16.9 x 6.11 in image
+
+# cairo_ps(file = "Fig2.1_revised_cairo.eps", onefile = FALSE, fallback_resolution = 600, width = 12.17, height = 4.39)
+# patchwork_plots_induction
+# dev.off()
 
 
 ## ANOVA ##
 
-# height_ANOVA <- foreach(group.i=unique(all_data_final$SC_group_new), .errorhandling="remove", .combine="rbind") %do% {
-#   
-#                   foreach(instar.i=unique(all_data_final$instar_new), .errorhandling="remove", .combine="rbind") %do% {
-#                     
-#                   tmp_dat_use <- all_data_final[SC_group_new == group.i][instar_new==instar.i]
-#                     
-#                     # i
-#                     foreach(i.i=unique(tmp_dat_use$i), .errorhandling="remove", .combine="rbind") %dopar% {
-#                       if(i.i%%10==0) print(i.i)
-#                       
-#                       tmp <- tmp_dat_use[i==i.i]
-#                       
-#                       # tmp.lm <- lm(height~cloneid_geno*treatment+batch, tmp)
-#                       # tmp.II.aov <- car::Anova(tmp.fit, type = 2)
-#                       
-#                       tmp.fit <- aov(height~cloneid_geno*treatment+batch, tmp)
-# 
-#                       etasq_out <- as.data.table(eta_squared(tmp.fit, partial=TRUE, ci = .99))
-#                       # etasq_out <- eta_sq(tmp.lm, partial=TRUE, ci.lvl = .99)
-#                       
-#                       #
-#                       data.table(i=i.i,
-#                                  instar = instar.i,
-#                                  group = group.i,
-#                                  
-#                                  partial_eta = unlist(c(etasq_out[1,2],
-#                                                  etasq_out[2,2],
-#                                                  etasq_out[3,2],
-#                                                  etasq_out[4,2])),
-#                                  
-#                                  lCI_eta = unlist(c(etasq_out[1,4],
-#                                              etasq_out[2,4],
-#                                              etasq_out[3,4],
-#                                              etasq_out[4,4])),
-#                                  
-#                                  uCI_eta = unlist(c(etasq_out[1,5],
-#                                              etasq_out[2,5],
-#                                              etasq_out[3,5],
-#                                              etasq_out[4,5])),             	
-#                                  
-#                                  term = c("geno", "trt", "batch", "gxe"))  
-#                       
-#                       
-#                     }
-#                   }
-#                 }
-# 
-# 
+height_ANOVA <- foreach(group.i=unique(all_data_final$SC_group_new), .errorhandling="remove", .combine="rbind") %do% {
+
+                  foreach(instar.i=unique(all_data_final$instar_new), .errorhandling="remove", .combine="rbind") %do% {
+
+                  tmp_dat_use <- all_data_final[SC_group_new == group.i][instar_new==instar.i]
+
+                    # i
+                    foreach(i.i=unique(tmp_dat_use$i), .errorhandling="remove", .combine="rbind") %dopar% {
+                      if(i.i%%10==0) print(i.i)
+
+                      tmp <- tmp_dat_use[i==i.i]
+
+                      # tmp.lm <- lm(height~cloneid_geno*treatment+batch, tmp)
+                      # tmp.II.aov <- car::Anova(tmp.lm, type = 2)
+
+                      tmp.fit <- aov(height~cloneid_geno*treatment+batch, tmp)
+                      
+                      tmp.fit_summary <- summary(tmp.fit)
+
+                      # etasq_out <- as.data.table(eta_squared(tmp.fit, partial=TRUE, ci = .99))
+                      # etasq_out <- eta_sq(tmp.lm, partial=TRUE, ci.lvl = .99)
+
+                      #
+                      data.table(i=i.i,
+                                 instar = instar.i,
+                                 group = group.i,
+
+                                 ## use ## code to extract eta square etc
+                                 # partial_eta = unlist(c(etasq_out[1,2],
+                                 #                 etasq_out[2,2],
+                                 #                 etasq_out[3,2],
+                                 #                 etasq_out[4,2])),
+                                 # 
+                                 # lCI_eta = unlist(c(etasq_out[1,4],
+                                 #             etasq_out[2,4],
+                                 #             etasq_out[3,4],
+                                 #             etasq_out[4,4])),
+                                 # 
+                                 # uCI_eta = unlist(c(etasq_out[1,5],
+                                 #             etasq_out[2,5],
+                                 #             etasq_out[3,5],
+                                 #             etasq_out[4,5])),
+                                 
+                                 ## use ## code to extract eta square etc
+                                 Df = unlist(c(tmp.fit_summary[[1]][1,1],
+                                               tmp.fit_summary[[1]][2,1],
+                                               tmp.fit_summary[[1]][3,1],
+                                               tmp.fit_summary[[1]][4,1])),
+                                 
+                                 SumSq = unlist(c(tmp.fit_summary[[1]][1,2],
+                                               tmp.fit_summary[[1]][2,2],
+                                               tmp.fit_summary[[1]][3,2],
+                                               tmp.fit_summary[[1]][4,2])),
+
+                                 F = unlist(c(tmp.fit_summary[[1]][1,4],
+                                               tmp.fit_summary[[1]][2,4],
+                                               tmp.fit_summary[[1]][3,4],
+                                               tmp.fit_summary[[1]][4,4])),
+                                 
+                                 p = unlist(c(tmp.fit_summary[[1]][1,5],
+                                               tmp.fit_summary[[1]][2,5],
+                                               tmp.fit_summary[[1]][3,5],
+                                               tmp.fit_summary[[1]][4,5])),
+                                 
+                                 term = c("geno", "trt", "batch", "gxe"))
+
+
+                    }
+                  }
+                }
+
+
+save(height_ANOVA, file = "aov_out_stats.RData")
+
+
 # save(height_ANOVA, file = "aov_out.RData")
 load(file = "output/aov_out.RData")
 
-
-aov_out_plot <- ggplot(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"],     
+aov_out_plot <- ggplot(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"][instar == "instar 2"],     
                        aes(x=i, y=partial_eta, group=term, color=as.factor(term))) +  
-                geom_line(size = 2) +
-                geom_ribbon(data=height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"], aes(ymin=lCI_eta, ymax=uCI_eta, colour = NA, fill=as.factor(height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"]$term)), alpha=0.3) +
+                geom_line(size = 1) +
+                geom_ribbon(data=height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"][instar == "instar 2"], aes(ymin=lCI_eta, ymax=uCI_eta, colour = NA, fill=as.factor(height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"][instar == "instar 2"]$term)), alpha=0.3) +
                 
-                # geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 1"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                # geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 1"], aes(xintercept = 300), linetype="dotted", color = "black", size=1) +
-                # geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 1"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
-     
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 1"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 1"], aes(xintercept = 100), linetype="dotted", color = "black", size=1) +
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 1"], aes(xintercept = 200), linetype="dotted", color = "black", size=1) +
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 1"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
-  
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=1) +
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=1) +
-                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster A"][instar == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
+                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"][instar == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=0.7) +
+                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"][instar == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=0.7) +
+                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"][instar == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=0.7) +
+                geom_vline(data = height_ANOVA[term %in% c('geno','gxe','trt')][group == "cluster O"][instar == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=0.7) +
                 
                 facet_wrap(~instar, ncol=1) +
                 theme(legend.position="none", 
                       rect = element_rect(fill = "transparent"),
-                      panel.grid.major = element_line(colour = "grey70", size=0.25),
-                      panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                      # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                      # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                       panel.background = element_rect(fill = "transparent",colour = NA),
                       plot.background = element_rect(fill = "transparent",colour = NA), 
                       #strip.text.x = element_blank(),
@@ -393,11 +423,11 @@ aov_out_plot <- ggplot(data = height_ANOVA[term %in% c('geno','gxe','trt')][grou
                       #axis.title.x = element_blank(), 
                       #axis.title.y = element_blank(),
                       axis.line = element_line(size = 1),
-                      axis.title.x = element_text(size=15,family='Arial'), 
-                      axis.title.y = element_text(size=15, family='Arial'),
-                      axis.text = element_text(size=15, family='Arial'),
-                      strip.text.x = element_text(size = 15, color = "black"),
-                      strip.text.y = element_text(size = 15, color = "black"),
+                      axis.title.x = element_text(size=11), 
+                      axis.title.y = element_text(size=11),
+                      axis.text = element_text(size=11),
+                      strip.text.x = element_text(size = 11, color = "black"),
+                      strip.text.y = element_text(size = 11, color = "black"),
                       panel.spacing.x = unit(6, "mm"),
                       panel.spacing.y = unit(6, "mm")) 
   
@@ -488,41 +518,27 @@ O_h2_all <- rbind(O_I1_h2_0,
                   O_I2_h2_05)
 
 
-h2_instar_i_plot <- ggplot(data = O_h2_all,  aes(x=i, y=h2)) +   
-  
-                    # geom_rect(data = O_h2_all[instar == "instar 1"], aes(xmin = 10, xmax = 300, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
-                    # geom_rect(data = O_h2_all[instar == "instar 1"], aes(xmin = 301, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
-                    # 
-                    # geom_rect(data = O_h2_all[instar == "instar 2"], aes(xmin = 10, xmax = 100, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
-                    # geom_rect(data = O_h2_all[instar == "instar 2"], aes(xmin = 101, xmax = 200, ymin = -Inf, ymax = Inf),fill = "#E8E8E8", colour="#E8E8E8", alpha=0.1) + 
-                    # geom_rect(data = O_h2_all[instar == "instar 2"], aes(xmin = 201, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
+h2_instar_i_plot <- ggplot(data = O_h2_all[instar == "instar 2"],  aes(x=i, y=h2)) +  
                     
-                    geom_vline(data = O_h2_all[instar == "instar 1"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = O_h2_all[instar == "instar 1"], aes(xintercept = 300), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = O_h2_all[instar == "instar 1"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
-                  
-                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
+                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=0.7) +
+                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=0.7) +
+                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=0.7) +
+                    geom_vline(data = O_h2_all[instar == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=0.7) +
 
-                    geom_ribbon(data=O_h2_all[i <= 600][treatment == 'predation'], aes(ymin=h2-1.96*SE, ymax=h2+1.96*SE, x=i), fill = "#FF0000", alpha = 0.3)+
-                    geom_line(data=O_h2_all[i <= 600][treatment == 'predation'], aes(x=i, y=h2), size = 1, colour = "#FF0000") + 
+                    geom_ribbon(data=O_h2_all[i <= 600][treatment == 'predation'][instar == "instar 2"], aes(ymin=h2-1.96*SE, ymax=h2+1.96*SE, x=i), fill = "#FF0000", alpha = 0.3)+
+                    geom_line(data=O_h2_all[i <= 600][treatment == 'predation'][instar == "instar 2"], aes(x=i, y=h2), size = 1, colour = "#FF0000") + 
                     
-                    geom_ribbon(data=O_h2_all[i <= 600][treatment == 'control'], aes(ymin=h2-1.96*SE, ymax=h2+1.96*SE, x=i), fill = "#000000", alpha = 0.3)+
-                    geom_line(data=O_h2_all[i <= 600][treatment == 'control'], aes(x=i, y=h2), size = 1, colour = "#000000") + 
+                    geom_ribbon(data=O_h2_all[i <= 600][treatment == 'control'][instar == "instar 2"], aes(ymin=h2-1.96*SE, ymax=h2+1.96*SE, x=i), fill = "#000000", alpha = 0.3)+
+                    geom_line(data=O_h2_all[i <= 600][treatment == 'control'][instar == "instar 2"], aes(x=i, y=h2), size = 1, colour = "#000000") + 
 
-                    #xlim(10,600) + 
-                    #ylim(0,0.6) +  
-  
-                    geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
+                    # geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
   
                     facet_wrap(~instar, ncol=1) +
                     
                     theme(legend.position="none", 
                           rect = element_rect(fill = "transparent"),
-                          panel.grid.major = element_line(colour = "grey70", size=0.25),
-                          panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                          # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                          # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                           panel.background = element_rect(fill = "transparent",colour = NA),
                           plot.background = element_rect(fill = "transparent",colour = NA), 
                           #strip.text.x = element_blank(),
@@ -530,11 +546,11 @@ h2_instar_i_plot <- ggplot(data = O_h2_all,  aes(x=i, y=h2)) +
                           #axis.title.x = element_blank(), 
                           #axis.title.y = element_blank(),
                           axis.line = element_line(size = 1),
-                          axis.title.x = element_text(size=15,family='Arial'), 
-                          axis.title.y = element_text(size=15, family='Arial'),
-                          axis.text = element_text(size=15, family='Arial'),
-                          strip.text.x = element_text(size = 15, color = "black"),
-                          strip.text.y = element_text(size = 15, color = "black"),
+                          axis.title.x = element_text(size=11), 
+                          axis.title.y = element_text(size=11),
+                          axis.text = element_text(size=11),
+                          strip.text.x = element_text(size = 11, color = "black"),
+                          strip.text.y = element_text(size = 11, color = "black"),
                           panel.spacing.x = unit(6, "mm"),
                           panel.spacing.y = unit(6, "mm")) 
 
@@ -548,7 +564,7 @@ shapiro.test(O_h2_all[i > 100 & i <= 200][instar == "instar 2"][treatment == 'pr
 
 
 # O_I1_plast
-# alternative: specify that predation is lower than control, i.e. control GREATER than predation
+# specify that predation is lower than control, i.e. control GREATER than predation
 wilcox_O_I1_plast <- wilcox.test(h2 ~ treatment, alternative =  "greater", data = O_h2_all[i <= 300][instar == "instar 1"]) 
 wilcox_O_I1_plast
 
@@ -613,49 +629,27 @@ AandO_H2_all <- rbind(H2_O_I1,
                       H2_A_I2)
 
 
-H2_instar_i_plot <- ggplot(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"]) +   
+H2_instar_i_plot <- ggplot(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 2"]) +   
   
-                    # geom_rect(data = AandO_H2_all[instar == "instar 1"], aes(xmin = 10, xmax = 300, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
-                    # geom_rect(data = AandO_H2_all[instar == "instar 1"], aes(xmin = 301, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
-                    # 
-                    # geom_rect(data = AandO_H2_all[instar == "instar 2"], aes(xmin = 10, xmax = 100, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
-                    # geom_rect(data = AandO_H2_all[instar == "instar 2"], aes(xmin = 101, xmax = 200, ymin = -Inf, ymax = Inf),fill = "#E8E8E8", colour="#E8E8E8", alpha=0.1) + 
-                    # geom_rect(data = AandO_H2_all[instar == "instar 2"], aes(xmin = 201, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
+                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=0.7) +
+                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=0.7) +
+                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=0.7) +
+                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=0.7) +
                     
-                    # geom_rect(aes(xmin = 10, xmax = 100, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
-                    # geom_rect(aes(xmin = 101, xmax = 200, ymin = -Inf, ymax = Inf),fill = "#E8E8E8", colour="#E8E8E8", alpha=0.1) + 
-                    # geom_rect(aes(xmin = 201, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
+                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'T'][group == "O"][instar == "instar 2"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#FF0000", alpha = 0.3)+
+                    geom_line(data=AandO_H2_all[i <= 600][label == 'T'][group == "O"][instar == "instar 2"], aes(x=i, y=stuff.mean), size = 0.8, colour = "#FF0000") + 
                     
-                    # geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 1"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                    # geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 1"], aes(xintercept = 300), linetype="dotted", color = "black", size=1) +
-                    # geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "O"][instar == "instar 1"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
-
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 1"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 1"], aes(xintercept = 100), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 1"], aes(xintercept = 200), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 1"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
-                        
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=1) +
-                    geom_vline(data = AandO_H2_all[i <= 600][label %in% c("C","T")][group == "A"][instar == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
-                    
-                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'T'][group == "A"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#FF0000", alpha = 0.3)+
-                    geom_line(data=AandO_H2_all[i <= 600][label == 'T'][group == "A"], aes(x=i, y=stuff.mean), size = 1, colour = "#FF0000") + 
-                    
-                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'C'][group == "A"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#000000", alpha = 0.3)+
-                    geom_line(data=AandO_H2_all[i <= 600][label == 'C'][group == "A"], aes(x=i, y=stuff.mean), size = 1, colour = "#000000") + 
+                    geom_ribbon(data=AandO_H2_all[i <= 600][label == 'C'][group == "O"][instar == "instar 2"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#000000", alpha = 0.3)+
+                    geom_line(data=AandO_H2_all[i <= 600][label == 'C'][group == "O"][instar == "instar 2"], aes(x=i, y=stuff.mean), size = 0.8, colour = "#000000") + 
   
-                    geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
+                    # geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
                     
-                    #ylim(0,0.58) +   
-  
                     facet_wrap(~instar, ncol=1) +
   
                     theme(legend.position="none", 
                           rect = element_rect(fill = "transparent"),
-                          panel.grid.major = element_line(colour = "grey70", size=0.25),
-                          panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                          # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                          # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                           panel.background = element_rect(fill = "transparent",colour = NA),
                           plot.background = element_rect(fill = "transparent",colour = NA), 
                           #strip.text.x = element_blank(),
@@ -663,11 +657,11 @@ H2_instar_i_plot <- ggplot(data = AandO_H2_all[i <= 600][label %in% c("C","T")][
                           #axis.title.x = element_blank(), 
                           #axis.title.y = element_blank(),
                           axis.line = element_line(size = 1),
-                          axis.title.x = element_text(size=15,family='Arial'), 
-                          axis.title.y = element_text(size=15, family='Arial'),
-                          axis.text = element_text(size=15, family='Arial'),
-                          strip.text.x = element_text(size = 15, color = "black"),
-                          strip.text.y = element_text(size = 15, color = "black"),
+                          axis.title.x = element_text(size=11), 
+                          axis.title.y = element_text(size=11),
+                          axis.text = element_text(size=11),
+                          strip.text.x = element_text(size = 11, color = "black"),
+                          strip.text.y = element_text(size = 11, color = "black"),
                           panel.spacing.x = unit(6, "mm"),
                           panel.spacing.y = unit(6, "mm")) 
   
@@ -710,11 +704,15 @@ wilcox_effectsize_O_I2_plast
 ### 
 # boxplots on module estimates
 
-load(file="output/effectSize_heritability.RData")
+load(file="output/effectSize_heritability_M8.RData")
+# load(file="output/effectSize_heritability_M9.RData")
+# load(file="output/effectSize_heritability_M11.RData")
+# load(file="output/effectSize_heritability_M12.RData")
+# load(file="output/effectSize_heritability_M13.RData")
 
 effectSize_heritability[, module_new := ifelse(effectSize_heritability$module == 'module 1', 'mod 1',
                                                ifelse(effectSize_heritability$module == 'module 2', 'mod 2',
-                                                      ifelse(effectSize_heritability$module == 'module 3', 'mod 3','NA')))]
+                                                      ifelse(effectSize_heritability$module == 'module 3', 'mod 3', 'NA')))]
 # ## correlation
 # cor(effectSize_heritability[instar == "instar 2"][i <= 100][variable == "effect_trt"]$value,
 #     effectSize_heritability[instar == "instar 2"][i <= 100][variable == "h2_trt"]$value)
@@ -787,43 +785,72 @@ effectsize_diff_mod1 <- wilcox_effsize(value ~ variable_new, data = effectSize_h
 effectsize_diff_mod1
 
 # (Z = -7.650842, p-value = 1.997e-14; large effect size: 0.561)
+# (Z = -7.650842, p-value = 1.997e-14; large effect size: 0.561)
+# (Z = -7.650842, p-value = 1.997e-14; large effect size: 0.561)
+# (Z = -7.650842, p-value = 1.997e-14; large effect size: 0.561)
+# (Z = -7.650842, p-value = 1.997e-14; large effect size: 0.561)
 
 
 diff_mod2 <- wilcox.test(value ~ variable, data = effectSize_heritability[instar == "instar 2"][variable %in% c("h2_ctrl", "h2_trt")][module_new == "mod 2"], paired = FALSE, alternative = "greater")
 diff_mod2
 
-p_diff_mod2 = qnorm(diff_mod2$p.value/2)
-p_diff_mod2
+Zscore_mod2 = qnorm(diff_mod2$p.value/2)
+Zscore_mod2
 
 effectsize_diff_mod2 <- wilcox_effsize(value ~ variable_new, data = effectSize_heritability[instar == "instar 2"][variable %in% c("h2_ctrl", "h2_trt")][module_new == "mod 2"], paired = FALSE, alternative = "greater")
 effectsize_diff_mod2
 
+# (Z = -9.151144, p-value < 2.2e-16; large effect size: 0.642)
+# (Z = -14.44177, p-value < 2.2e-16; large effect size: 0.671)
+# (Z = -9.151144, p-value < 2.2e-16; large effect size: 0.642)
+# (Z = -9.151144, p-value < 2.2e-16; large effect size: 0.642)
 # (Z = -9.151144, p-value < 2.2e-16; large effect size: 0.642)
 
 
 diff_mod3 <- wilcox.test(value ~ variable, data = effectSize_heritability[instar == "instar 2"][variable %in% c("h2_ctrl", "h2_trt")][module_new == "mod 3"], paired = FALSE, alternative = "greater")
 diff_mod3
 
-p_diff_mod3 = qnorm(diff_mod3$p.value/2)
-p_diff_mod3
+Zscore_mod3 = qnorm(diff_mod3$p.value/2)
+Zscore_mod3
 
 effectsize_diff_mod3 <- wilcox_effsize(value ~ variable_new, data = effectSize_heritability[instar == "instar 2"][variable %in% c("h2_ctrl", "h2_trt")][module_new == "mod 3"], paired = FALSE, alternative = "greater")
 effectsize_diff_mod3
 
+# (Z = -4.530676e-06, p-value = 1; small effect size)
+# (Z = 0, p-value = 1; large effect size: 0.555)
+# (Z = -11.90556, p-value < 2.2e-16; large effect size: 0.684)
+# (Z = -12.27196, p-value < 2.2e-16; large effect size: 0.864)
+# (Z = -8.6929, p-value < 2.2e-16; large effect size: 0.862)
+
+
+diff_mod4 <- wilcox.test(value ~ variable, data = effectSize_heritability[instar == "instar 2"][variable %in% c("h2_ctrl", "h2_trt")][module_new == "mod 4"], paired = FALSE, alternative = "greater")
+diff_mod4
+
+Zscore_mod4 = qnorm(diff_mod4$p.value/2)
+Zscore_mod4
+
+effectsize_diff_mod4 <- wilcox_effsize(value ~ variable_new, data = effectSize_heritability[instar == "instar 2"][variable %in% c("h2_ctrl", "h2_trt")][module_new == "mod 4"], paired = FALSE, alternative = "greater")
+effectsize_diff_mod4
 
 # (Z = -4.530676e-06, p-value = 1; small effect size)
+# (Z = 0, p-value = 1; large effect size: 0.555)
+# (Z = 0, p-value = 1; large effect size: 0.668)
+# (Z = 0, p-value = 1; large effect size: 0.435)
+# (Z = -1.25927e-13, p-value = 1; large effect size: 0.278)
+
+
 
 
 ## plot data
 # PREDATION VS CONTROL
 ## only instar 2 & h2 estimates
-box1 <- ggplot(effectSize_heritability[variable %in% c('effect_trt','h2_trt','h2_ctrl')][instar == "instar 2"], aes(y=value, fill=(variable))) + 
+box1 <- ggplot(effectSize_heritability[variable %in% c('effect_trt','h2_trt','h2_ctrl')][instar == "instar 2"][group == "cluster O"], aes(y=value, fill=(variable))) + 
                 geom_boxplot(notch=TRUE, outlier.colour="#555555", outlier.shape=8, outlier.size=2) + 
                 facet_grid(~module_new) + 
                 theme(legend.position="none", 
                       rect = element_rect(fill = "transparent"),
-                      panel.grid.major = element_line(colour = "grey70", size=0.25),
-                      panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                      # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                      # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                       panel.background = element_rect(fill = "transparent",colour = NA),
                       plot.background = element_rect(fill = "transparent",colour = NA), 
                       #strip.text.x = element_blank(),
@@ -831,42 +858,39 @@ box1 <- ggplot(effectSize_heritability[variable %in% c('effect_trt','h2_trt','h2
                       axis.title.x = element_blank(), 
                       #axis.title.y = element_blank(),
                       axis.line = element_line(size = 1),
-                      # axis.title.x = element_text(size=15,family='Arial'), 
-                      axis.title.y = element_text(size=15, family='Arial'),
-                      axis.text.y = element_text(size=15, family='Arial'),
-                      strip.text.x = element_text(size = 15, color = "black"),
-                      strip.text.y = element_text(size = 15, color = "black"),
+                      # axis.title.x = element_text(size=11), 
+                      axis.title.y = element_text(size=11),
+                      axis.text.y = element_text(size=11),
+                      strip.text.x = element_text(size = 11, color = "black"),
+                      strip.text.y = element_text(size = 11, color = "black"),
                       panel.spacing.x = unit(6, "mm"),
                       panel.spacing.y = unit(6, "mm")) 
 
-box1 + labs(y = expression(Estiamtes~"("~V[a]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))
+box1 + labs(y = expression(Estiamtes~"("~h[2]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))
 
 
-
-
-  
 ########
 ########
 
 
-aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6))
-
-H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6))
-
-h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6))
-
-box1 + labs(y = expression(Estiamtes~"("~V[a]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))
+# aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6))
+# 
+# H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6))
+# 
+# h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.05,0.6), breaks=c(0,0.2,0.4,0.6))
+# 
+# box1 + labs(y = expression(Estiamtes~"("~V[a]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))
 
 
 
 # Os
-patchwork_plots_induction2 <- aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6)) + 
-  H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.01,0.62), breaks=c(0,0.2,0.4,0.6)) +
-  h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.11,0.65), breaks=c(0,0.2,0.4,0.6)) +
-  plot_spacer() +
-  plot_layout(ncol=4, widths = c(1,1,1,1.5))
-
-patchwork_plots_induction2
+# patchwork_plots_induction2 <- aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6)) + 
+#   H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.01,0.62), breaks=c(0,0.2,0.4,0.6)) +
+#   h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.11,0.65), breaks=c(0,0.2,0.4,0.6)) +
+#   plot_spacer() +
+#   plot_layout(ncol=4, widths = c(1,1,1,1.5))
+# 
+# patchwork_plots_induction2
 
 
 # As
@@ -878,6 +902,8 @@ patchwork_plots_induction2 <- aov_out_plot + labs(x = "dorsal position", y = "ef
 
 patchwork_plots_induction2
 
+ggsave("patchwork_plots_induction_heritability_As.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
+
 
 ag.line_plot_2 <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"][treatment == 0.5][instar_new == "instar 2"],  aes(x=i, y=height)) +   
   
@@ -885,9 +911,9 @@ ag.line_plot_2 <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"][t
                           # geom_rect(aes(xmin = 101, xmax = 200, ymin = -Inf, ymax = Inf),fill = "#E8E8E8", colour="#E8E8E8", alpha=0.1) +
                           # geom_rect(aes(xmin = 201, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) +
   
-                          geom_vline(xintercept = c(10, 100, 200, 600), linetype="dotted", color = "black", size=1) + 
+                          geom_vline(xintercept = c(10, 100, 200, 600), linetype="dotted", color = "black", size=0.7) + 
 
-                          geom_line(aes(x=i, y=height), size = 1.5, colour = "red") + 
+                          geom_line(aes(x=i, y=height), size = 1, colour = "red") + 
   
                           facet_grid(~instar_new) +
 
@@ -895,8 +921,8 @@ ag.line_plot_2 <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"][t
                           
                           theme(legend.position="none", 
                                 rect = element_rect(fill = "transparent"),
-                                panel.grid.major = element_line(colour = "grey70", size=0.25),
-                                panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                                # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                                # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                                 panel.background = element_rect(fill = "transparent",colour = NA),
                                 plot.background = element_rect(fill = "transparent",colour = NA), 
                                 #strip.text.x = element_blank(),
@@ -904,11 +930,11 @@ ag.line_plot_2 <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"][t
                                 axis.title.x = element_blank(), 
                                 #axis.title.y = element_blank(),
                                 axis.line = element_line(size = 1),
-                                # axis.title.x = element_text(size=15,family='Arial'), 
-                                axis.title.y = element_text(size=15, family='Arial'),
-                                axis.text = element_text(size=15, family='Arial'),
-                                strip.text.x = element_text(size = 15, color = "black"),
-                                strip.text.y = element_text(size = 15, color = "black"),
+                                # axis.title.x = element_text(size=11), 
+                                axis.title.y = element_text(size=11),
+                                axis.text = element_text(size=11),
+                                strip.text.x = element_text(size = 11, color = "black"),
+                                strip.text.y = element_text(size = 11, color = "black"),
                                 panel.spacing.x = unit(6, "mm"),
                                 panel.spacing.y = unit(6, "mm")) 
 
@@ -919,22 +945,111 @@ ag.line_plot_2  + labs(x = "dorsal position", y = "dorsal height") + scale_x_con
 
 
 
-patchwork_plots_induction3 <- plot_spacer() + 
-  plot_spacer() +
-  plot_spacer() +
-  ( (ag.line_plot_2  + labs(x = "dorsal position", y = "dorsal height") + scale_x_continuous(limits=c(10,600), breaks=c(300,600))) / 
-      (box1 + labs(y = expression(Estiamtes~"("~V[a]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))) + plot_layout(nrow=2, heights = c(0.4,1)) ) +
-  plot_layout(ncol=4, widths = c(1,1,1,1))
-
-patchwork_plots_induction3
+# patchwork_plots_induction3 <- plot_spacer() + 
+#   plot_spacer() +
+#   plot_spacer() +
+#   ( (ag.line_plot_2  + labs(x = "dorsal position", y = "dorsal height") + scale_x_continuous(limits=c(10,600), breaks=c(300,600))) / 
+#       (box1 + labs(y = expression(Estiamtes~"("~V[a]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))) + plot_layout(nrow=2, heights = c(0.4,1)) ) +
+#   plot_layout(ncol=4, widths = c(1,1,1,1))
+# 
+# patchwork_plots_induction3
 
 
 patchwork_plots_induction3_alt <- aov_out_plot + labs(x = "dorsal position", y = "effect size") + scale_color_manual(values=c("#0000CC","#A0A0A0","#FF0000")) + scale_fill_manual(values = c("#0000CC","#A0A0A0","#FF0000")) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(0,0.6), breaks=c(0,0.2,0.4,0.6)) + 
   H2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(H^{2}))) + scale_x_continuous(limits=c(10,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.01,0.62), breaks=c(0,0.2,0.4,0.6)) +
   h2_instar_i_plot + labs(x = "dorsal position", y = expression(heritability~(h^{2}))) + scale_x_continuous(limits=c(0,600), breaks=c(0,300,600)) + scale_y_continuous(limits=c(-0.12,0.65), breaks=c(0,0.2,0.4,0.6)) +
   ( (ag.line_plot_2  + labs(x = "dorsal position", y = "dorsal height") + scale_x_continuous(limits=c(10,600), breaks=c(300,600))) / 
-      (box1 + labs(y = expression(Estiamtes~"("~V[a]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))) + plot_layout(nrow=2, heights = c(0.4,1)) ) +
+      (box1 + labs(y = expression(Estiamtes~"("~h[2]~OR~plasticity~")")) + scale_fill_manual(values=c("#DCDCDC","#000000","#FF0000"))) + plot_layout(nrow=2, heights = c(0.4,1)) ) +
   plot_layout(ncol=4, widths = c(1,1,1,1))
 
 patchwork_plots_induction3_alt
+
+# ggsave("patchwork_plots_induction_heritability.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
+
+ggsave("Fig2.2_revised_NEW_NEW.eps", fallback_resolution = 600, device = cairo_ps, width = 12.17, height = 4.39)  # Saving 16.9 x 6.11 in image
+# ggsave("Fig2.2_Legend1.eps", fallback_resolution = 600, device = cairo_ps, width = 12.17, height = 4.39)  # Saving 16.9 x 6.11 in image
+# ggsave("Fig2.2_Legend2.eps", fallback_resolution = 600, device = cairo_ps, width = 12.17, height = 4.39)  # Saving 16.9 x 6.11 in image
+# 
+# cairo_ps(file = "Fig2.2_revised_cairo.eps", onefile = FALSE, fallback_resolution = 600, width = 12.17, height = 4.39)
+# patchwork_plots_induction3_alt
+# dev.off()
+
+
+
+####### Suppl Figure re Modularity
+
+all_data_final.ag <- all_data_final[i <= 600][, list(height = mean(height)), list(i, treatment, instar_new, SC_group_new)]
+
+ag.line_plot <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"][instar_new == "instar 2"],  aes(x=i, y=height)) +   
+  
+                      geom_vline(xintercept = c(10, 100, 150, 200, 250, 300, 350, 400, 500, 600), linetype="dashed", color = "black", size=0.8) + 
+                      
+                      geom_line(data = all_data_final.ag[treatment == 0][SC_group_new == "cluster O"][instar_new == "instar 2"],  aes(x=i, y=height), size = 1.5, colour = "black") + 
+                      geom_line(data = all_data_final.ag[treatment == 0.5][SC_group_new == "cluster O"][instar_new == "instar 2"],  aes(x=i, y=height), size = 1.5, colour = "red") + 
+                      
+                      ylim(0, 0.28) +
+                      
+                      facet_wrap(~instar_new, ncol=1) +
+                      
+                      theme(legend.position="none", 
+                            rect = element_rect(fill = "transparent"),
+                            panel.grid.major = element_line(colour = "grey70", size=0.25),
+                            panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                            panel.background = element_rect(fill = "transparent",colour = NA),
+                            plot.background = element_rect(fill = "transparent",colour = NA), 
+                            #strip.text.x = element_blank(),
+                            #axis.text.x = element_blank(), 
+                            #axis.title.x = element_blank(), 
+                            #axis.title.y = element_blank(),
+                            axis.line = element_line(size = 1),
+                            axis.title.x = element_text(size=15,family='Arial'), 
+                            axis.title.y = element_text(size=15, family='Arial'),
+                            axis.text = element_text(size=15, family='Arial'),
+                            strip.text.x = element_text(size = 15, color = "black"),
+                            strip.text.y = element_text(size = 15, color = "black"),
+                            panel.spacing.x = unit(6, "mm"),
+                            panel.spacing.y = unit(6, "mm")) 
+
+
+# tiff(file = "avg_shape_plot.tiff", width = 3200, height = 3200, units = "px", res = 800)
+ag.line_plot  + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000"))
+# dev.off()
+
+
+####### Suppl Overview Figure
+
+ag.line_plot_overview <- ggplot(data = all_data_final.ag[SC_group_new == "cluster O"][instar_new == "instar 2"],  aes(x=i, y=height)) +   
+  
+                              geom_line(data = all_data_final.ag[treatment == 0][SC_group_new == "cluster O"][instar_new == "instar 2"],  aes(x=i, y=height), size = 1.5, colour = "black") + 
+                              geom_line(data = all_data_final.ag[treatment == 0.5][SC_group_new == "cluster O"][instar_new == "instar 2"],  aes(x=i, y=height), size = 1.5, colour = "red") + 
+                              
+                              ylim(0, 0.28) +
+                              
+                              facet_wrap(~instar_new, ncol=1) +
+                              
+                              theme(legend.position="none", 
+                                    rect = element_rect(fill = "transparent"),
+                                    panel.grid.major = element_line(colour = "grey70", size=0.25),
+                                    panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                                    panel.background = element_rect(fill = "transparent",colour = NA),
+                                    plot.background = element_rect(fill = "transparent",colour = NA), 
+                                    #strip.text.x = element_blank(),
+                                    #axis.text.x = element_blank(), 
+                                    #axis.title.x = element_blank(), 
+                                    #axis.title.y = element_blank(),
+                                    axis.line = element_line(size = 1),
+                                    axis.title.x = element_text(size=15,family='Arial'), 
+                                    axis.title.y = element_text(size=15, family='Arial'),
+                                    axis.text = element_text(size=15, family='Arial'),
+                                    strip.text.x = element_text(size = 15, color = "black"),
+                                    strip.text.y = element_text(size = 15, color = "black"),
+                                    panel.spacing.x = unit(6, "mm"),
+                                    panel.spacing.y = unit(6, "mm")) 
+                            
+
+# tiff(file = "avg_shape_plot.tiff", width = 3200, height = 3200, units = "px", res = 800)
+ag.line_plot_overview  + labs(x = "dorsal position", y = "dorsal height (mm)") + scale_x_continuous(limits=c(0,621), breaks=c(0,300,600)) + scale_color_manual(values=c("#000000","#000000"))
+# dev.off()
+
+
 

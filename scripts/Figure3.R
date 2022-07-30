@@ -973,6 +973,13 @@ R2_all_plot <- all_R2s_use %>% mutate(group = fct_relevel(group, "within clutch"
 R2_all_plot + scale_color_manual(values=c("#000000","#FF0000","#D3D3D3","#fed4d2")) + labs(x = "phenotypic trait", y = "correlation coefficient") 
 # dev.off()
 
+patchwork_plots_twins <- R2_all_plot + scale_color_manual(values=c("#000000","#FF0000","#D3D3D3","#fed4d2")) + labs(x = "phenotypic trait", y = "correlation coefficient") +
+  plot_spacer() +
+  plot_layout(ncol=2, widths = c(1,1))
+
+patchwork_plots_twins
+
+ggsave("patchwork_plots_twins.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
 
 
 
@@ -1035,31 +1042,20 @@ H2_ratio_all <- rbind(H2_ctrl_I1_ratio_use,
                        H2_trt_I2_ratio_use)
 
 
-VaVm_instar_i_plot <- ggplot(data = H2_ratio_all[i <= 600]) +  
+VaVm_instar_i_plot <- ggplot(data = H2_ratio_all[i <= 600][instar == 2]) +  
   
-                        # geom_rect(data = H2_ration_all[i <= 600][instar == 1], aes(xmin = 10, xmax = 300, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
-                        # geom_rect(data = H2_ration_all[i <= 600][instar == 1], aes(xmin = 301, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
-                        # 
-                        # geom_rect(data = H2_ration_all[i <= 600][instar == 2], aes(xmin = 10, xmax = 100, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) + 
-                        # geom_rect(data = H2_ration_all[i <= 600][instar == 2], aes(xmin = 101, xmax = 200, ymin = -Inf, ymax = Inf),fill = "#E8E8E8", colour="#E8E8E8", alpha=0.1) + 
-                        # geom_rect(data = H2_ration_all[i <= 600][instar == 2], aes(xmin = 201, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) + 
-                        
-                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 1"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 1"], aes(xintercept = 300), linetype="dotted", color = "black", size=1) +
-                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 1"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
-                        
-                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=1) +
-                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=1) +
-                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=1) +
-                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=1) +
+                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 10), linetype="dotted", color = "black", size=0.7) +
+                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 100), linetype="dotted", color = "black", size=0.7) +
+                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 200), linetype="dotted", color = "black", size=0.7) +
+                        geom_vline(data = H2_ratio_all[i <= 600][instar_new == "instar 2"], aes(xintercept = 600), linetype="dotted", color = "black", size=0.7) +
                       
-                        geom_ribbon(data=H2_ratio_all[i <= 600][group == "trt"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#FF0000", alpha = 0.3)+
-                        geom_line(data=H2_ratio_all[i <= 600][group == "trt"], aes(x=i, y=stuff.mean), size = 1, colour = "#FF0000") + 
+                        geom_ribbon(data=H2_ratio_all[i <= 600][group == "trt"][instar == 2], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#FF0000", alpha = 0.3)+
+                        geom_line(data=H2_ratio_all[i <= 600][group == "trt"][instar == 2], aes(x=i, y=stuff.mean), size = 0.8, colour = "#FF0000") + 
                         
-                        geom_ribbon(data=H2_ratio_all[i <= 600][group == "ctrl"], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#000000", alpha = 0.3)+
-                        geom_line(data=H2_ratio_all[i <= 600][group == "ctrl"], aes(x=i, y=stuff.mean), size = 1, colour = "#000000") + 
+                        geom_ribbon(data=H2_ratio_all[i <= 600][group == "ctrl"][instar == 2], aes(ymin=stuff.lCI, ymax=stuff.uCI, x=i), fill = "#000000", alpha = 0.3)+
+                        geom_line(data=H2_ratio_all[i <= 600][group == "ctrl"][instar == 2], aes(x=i, y=stuff.mean), size = 0.8, colour = "#000000") + 
                         
-                        geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
+                        # geom_hline(yintercept=0, linetype = "dotted", size = 0.5, colour = "black") +
                         
                         #ylim(0,0.58) +   
                         
@@ -1067,8 +1063,8 @@ VaVm_instar_i_plot <- ggplot(data = H2_ratio_all[i <= 600]) +
                         
                         theme(legend.position="none", 
                               rect = element_rect(fill = "transparent"),
-                              panel.grid.major = element_line(colour = "grey70", size=0.25),
-                              panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                              # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                              # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                               panel.background = element_rect(fill = "transparent",colour = NA),
                               plot.background = element_rect(fill = "transparent",colour = NA), 
                               #strip.text.x = element_blank(),
@@ -1076,11 +1072,11 @@ VaVm_instar_i_plot <- ggplot(data = H2_ratio_all[i <= 600]) +
                               #axis.title.x = element_blank(), 
                               #axis.title.y = element_blank(),
                               axis.line = element_line(size = 1),
-                              axis.title.x = element_text(size=15,family='Arial'), 
-                              axis.title.y = element_text(size=15, family='Arial'),
-                              axis.text = element_text(size=15, family='Arial'),
-                              strip.text.x = element_text(size = 15, color = "black"),
-                              strip.text.y = element_text(size = 15, color = "black"),
+                              axis.title.x = element_text(size=11), 
+                              axis.title.y = element_text(size=11),
+                              axis.text = element_text(size=11),
+                              strip.text.x = element_text(size = 11, color = "black"),
+                              strip.text.y = element_text(size = 11, color = "black"),
                               panel.spacing.x = unit(6, "mm"),
                               panel.spacing.y = unit(6, "mm")) 
 
@@ -1241,8 +1237,8 @@ box2 <- ggplot(effectSize_heritability[variable %in% c('H2_VAoverVM_trt','H2_VAo
                 facet_grid(~module_new) + 
                 theme(legend.position="none", 
                       rect = element_rect(fill = "transparent"),
-                      panel.grid.major = element_line(colour = "grey70", size=0.25),
-                      panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                      # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                      # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                       panel.background = element_rect(fill = "transparent",colour = NA),
                       plot.background = element_rect(fill = "transparent",colour = NA), 
                       #strip.text.x = element_blank(),
@@ -1250,11 +1246,11 @@ box2 <- ggplot(effectSize_heritability[variable %in% c('H2_VAoverVM_trt','H2_VAo
                       axis.title.x = element_blank(), 
                       #axis.title.y = element_blank(),
                       axis.line = element_line(size = 1),
-                      # axis.title.x = element_text(size=15,family='Arial'), 
-                      axis.title.y = element_text(size=15, family='Arial'),
-                      axis.text.y = element_text(size=15, family='Arial'),
-                      strip.text.x = element_text(size = 15, color = "black"),
-                      strip.text.y = element_text(size = 15, color = "black"),
+                      # axis.title.x = element_text(size=11), 
+                      axis.title.y = element_text(size=11),
+                      axis.text.y = element_text(size=11),
+                      strip.text.x = element_text(size = 11, color = "black"),
+                      strip.text.y = element_text(size = 11, color = "black"),
                       panel.spacing.x = unit(6, "mm"),
                       panel.spacing.y = unit(6, "mm")) 
 
@@ -1268,15 +1264,15 @@ load(file = "data/all_data_final.RData")
 all_data_final.ag <- all_data_final[i <= 600][, list(height = mean(height)), list(i, treatment, instar_new, SC_group_new)]
 
 
-ag.line_plot_2 <- ggplot(data = all_data_final.ag[treatment == 0.5][instar_new == "instar 2"],  aes(x=i, y=height)) +   
+ag.line_plot_2 <- ggplot(data = all_data_final.ag[treatment == 0.5][instar_new == "instar 2"][SC_group_new == "cluster O"],  aes(x=i, y=height)) +   
   
                           # geom_rect(aes(xmin = 10, xmax = 100, ymin = -Inf, ymax = Inf),fill = "#F5F5F5", colour="#F5F5F5", alpha=0.1) +
                           # geom_rect(aes(xmin = 101, xmax = 200, ymin = -Inf, ymax = Inf),fill = "#E8E8E8", colour="#E8E8E8", alpha=0.1) +
                           # geom_rect(aes(xmin = 201, xmax = 600, ymin = -Inf, ymax = Inf),fill = "#DCDCDC", colour="#DCDCDC", alpha=0.1) +
                           
-                          geom_vline(xintercept = c(10, 100, 200, 600), linetype="dotted", color = "black", size=1) + 
+                          geom_vline(xintercept = c(10, 100, 200, 600), linetype="dotted", color = "black", size=0.7) + 
                           
-                          geom_line(aes(x=i, y=height), size = 1.5, colour = "red") + 
+                          geom_line(aes(x=i, y=height), size = 1, colour = "red") + 
                           
                           facet_grid(~instar_new) +
                           
@@ -1284,8 +1280,8 @@ ag.line_plot_2 <- ggplot(data = all_data_final.ag[treatment == 0.5][instar_new =
                           
                           theme(legend.position="none", 
                                 rect = element_rect(fill = "transparent"),
-                                panel.grid.major = element_line(colour = "grey70", size=0.25),
-                                panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                                # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                                # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                                 panel.background = element_rect(fill = "transparent",colour = NA),
                                 plot.background = element_rect(fill = "transparent",colour = NA), 
                                 #strip.text.x = element_blank(),
@@ -1293,11 +1289,11 @@ ag.line_plot_2 <- ggplot(data = all_data_final.ag[treatment == 0.5][instar_new =
                                 axis.title.x = element_blank(), 
                                 #axis.title.y = element_blank(),
                                 axis.line = element_line(size = 1),
-                                # axis.title.x = element_text(size=15,family='Arial'), 
-                                axis.title.y = element_text(size=15, family='Arial'),
-                                axis.text = element_text(size=15, family='Arial'),
-                                strip.text.x = element_text(size = 15, color = "black"),
-                                strip.text.y = element_text(size = 15, color = "black"),
+                                # axis.title.x = element_text(size=11), 
+                                axis.title.y = element_text(size=11),
+                                axis.text = element_text(size=11),
+                                strip.text.x = element_text(size = 11, color = "black"),
+                                strip.text.y = element_text(size = 11, color = "black"),
                                 panel.spacing.x = unit(6, "mm"),
                                 panel.spacing.y = unit(6, "mm")) 
 
@@ -1358,17 +1354,14 @@ patchwork_plots_induction4.2 <- ( VaVm_instar_i_plot + labs(x = "dorsal position
 
 patchwork_plots_induction4.2
 
+# ggsave("patchwork_plots_ratio.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
+# ggsave("patchwork_plots_induction_heritability.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
 
+ggsave("Fig3_revised_NEW.eps", fallback_resolution = 600, device = cairo_ps, width = 12.17, height = 4.39)  # Saving 16.9 x 6.11 in image
 
-  ( plot_spacer() + plot_spacer() ) + plot_layout(ncol=2, widths = c(2,1)) 
-  plot_layout(ncol=3, widths = c(2,1,1))  
-
-patchwork_plots_induction4.2
-
-
-
-
-( box2 + plot_spacer() ) / ( box2 + plot_spacer() ) + plot_layout(nrow=2, heights = c(0.4,1)) 
+# cairo_ps(file = "Fig3_revised_cairo.eps", onefile = FALSE, fallback_resolution = 600, width = 12.17, height = 4.39)
+# patchwork_plots_induction4.2
+# dev.off()
 
 
   

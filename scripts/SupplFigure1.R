@@ -66,9 +66,9 @@ hist_plot + labs(x = "IBS", y = "frequency")
 # kinship
 
 ### Load file
-dorthe <- fread("dortheB.kin")
+dorthe <- fread("output/dortheB.kin")
 
-sc <- fread("Superclones201617182019withObtusaandPulicaria_kingcorr_20200623_wmedrd.txt")
+sc <- fread("data/Superclones201617182019withObtusaandPulicaria_kingcorr_20200623_wmedrd.txt")
 scA <- data.table(ID1=sc$clone, SCA=sc$SC, medrdA=sc$medrd)
 scB <- data.table(ID2=sc$clone, SCB=sc$SC, medrdB=sc$medrd)
 
@@ -115,8 +115,16 @@ King_plot + scale_color_manual(values=c("#FF0000","#0000CC"))
 
 
 patchwork_plots_IBS_kinship <- hist_plot + labs(x = "IBS", y = "frequency") +  
-  (King_plot + scale_color_manual(values=c("#FF0000","#0000CC")))   # plot_spacer() +
+  (King_plot + scale_color_manual(values=c("#FF0000","#0000CC"))) +
+     plot_spacer() +
+  plot_layout(ncol=4, widths = c(2,1.5,0.5))
 
 patchwork_plots_IBS_kinship
+
+ggsave("patchwork_plots_IBS.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
+
+
+
+
 
 

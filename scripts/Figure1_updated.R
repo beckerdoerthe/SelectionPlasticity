@@ -18,6 +18,8 @@ library(imager)
 library(irr)
 library(rstatix)
 library(patchwork)
+# library(extrafont)
+# # font_import()
 
 
 #############
@@ -38,7 +40,6 @@ shape_use_small <- shape_use[i %in% c(10:650)][instar %in% c(1,2)][, list(animal
                                                                    list(filebase,filebase_cor,GenoPLUS,treatment,instar,pixel_to_mm)]
 
 
-
 load(file="data/GUI_data_plusManual.RData")
 
 # animal length
@@ -57,8 +58,8 @@ length_plot <- ggplot(data=(GUI_data_plusManual_use_length_use)) +
   
   theme(legend.position="none", 
         rect = element_rect(fill = "transparent"),
-        panel.grid.major = element_line(colour = "grey70", size=0.25),
-        panel.grid.minor = element_line(colour = "grey90", size=0.1),
+        # panel.grid.major = element_line(colour = "grey70", size=0.25),
+        # panel.grid.minor = element_line(colour = "grey90", size=0.1),
         panel.background = element_rect(fill = "transparent",colour = NA),
         plot.background = element_rect(fill = "transparent",colour = NA), 
         #strip.text.x = element_blank(),
@@ -66,11 +67,11 @@ length_plot <- ggplot(data=(GUI_data_plusManual_use_length_use)) +
         #axis.title.x = element_blank(), 
         #axis.title.y = element_blank(),
         axis.line = element_line(size = 1),
-        axis.title.x = element_text(size=15,family='Arial'), 
-        axis.title.y = element_text(size=15, family='Arial'),
-        axis.text = element_text(size=15, family='Arial'),
-        strip.text.x = element_text(size = 15, color = "black"),
-        strip.text.y = element_text(size = 15, color = "black"),
+        axis.title.x = element_text(size=11), 
+        axis.title.y = element_text(size=11), 
+        axis.text = element_text(size=11), 
+        strip.text.x = element_text(size = 11, color = "black"),
+        strip.text.y = element_text(size = 11, color = "black"),
         panel.spacing.x = unit(6, "mm"),
         panel.spacing.y = unit(6, "mm")) 
 
@@ -105,8 +106,8 @@ microstage_plot <- ggplot(data=(GUI_data_plusManual_use_microstage_use)) +
   
   theme(legend.position="none", 
         rect = element_rect(fill = "transparent"),
-        panel.grid.major = element_line(colour = "grey70", size=0.25),
-        panel.grid.minor = element_line(colour = "grey90", size=0.1),
+        # panel.grid.major = element_line(colour = "grey70", size=0.25),
+        # panel.grid.minor = element_line(colour = "grey90", size=0.1),
         panel.background = element_rect(fill = "transparent",colour = NA),
         plot.background = element_rect(fill = "transparent",colour = NA), 
         #strip.text.x = element_blank(),
@@ -114,11 +115,11 @@ microstage_plot <- ggplot(data=(GUI_data_plusManual_use_microstage_use)) +
         #axis.title.x = element_blank(), 
         #axis.title.y = element_blank(),
         axis.line = element_line(size = 1),
-        axis.title.x = element_text(size=15,family='Arial'), 
-        axis.title.y = element_text(size=15, family='Arial'),
-        axis.text = element_text(size=15, family='Arial'),
-        strip.text.x = element_text(size = 15, color = "black"),
-        strip.text.y = element_text(size = 15, color = "black"),
+        axis.title.x = element_text(size=11), 
+        axis.title.y = element_text(size=11), 
+        axis.text = element_text(size=11), 
+        strip.text.x = element_text(size = 11, color = "black"),
+        strip.text.y = element_text(size = 11, color = "black"),
         panel.spacing.x = unit(6, "mm"),
         panel.spacing.y = unit(6, "mm")) 
 
@@ -155,8 +156,8 @@ pedestal_I2_plot <- ggplot(data=GUI_data_plusManual_use_pedestal_use.ag[instar =
                         facet_wrap(~treatment_new, ncol = 1) +
                         theme(legend.position="none", 
                               rect = element_rect(fill = "transparent"),
-                              panel.grid.major = element_line(colour = "grey70", size=0.25),
-                              panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                              # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                              # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                               panel.background = element_rect(fill = "transparent",colour = NA),
                               plot.background = element_rect(fill = "transparent",colour = NA),
                               #strip.text.x = element_blank(),
@@ -164,11 +165,11 @@ pedestal_I2_plot <- ggplot(data=GUI_data_plusManual_use_pedestal_use.ag[instar =
                               #axis.title.x = element_blank(),
                               #axis.title.y = element_blank(),
                               axis.line = element_line(size = 1),
-                              axis.title.x = element_text(size=15,family='Arial'),
-                              axis.title.y = element_text(size=15, family='Arial'),
-                              axis.text = element_text(size=15, family='Arial'),
-                              strip.text.x = element_text(size = 15, color = "black"),
-                              strip.text.y = element_text(size = 15, color = "black"),
+                              axis.title.x = element_text(size=11), 
+                              axis.title.y = element_text(size=11), 
+                              axis.text = element_text(size=11), 
+                              strip.text.x = element_text(size = 11, color = "black"),
+                              strip.text.y = element_text(size = 11, color = "black"),
                               panel.spacing.x = unit(6, "mm"),
                               panel.spacing.y = unit(6, "mm"))
 
@@ -201,8 +202,8 @@ pedestal_O1vsO2_I1 <- ggplot(data=pedestal_data_check_unique[instar == 1], aes(y
         #axis.title.y = element_blank(),
         axis.line = element_line(size = 1),
         axis.title.x = element_text(size=15,family='Arial'), 
-        axis.title.y = element_text(size=15, family='Arial'),
-        axis.text = element_text(size=15, family='Arial'),
+        axis.title.y = element_text(size=15,family='Arial'), 
+        axis.text = element_text(size=15,family='Arial'), 
         strip.text.x = element_text(size = 15, color = "black"),
         strip.text.y = element_text(size = 15, color = "black"),
         panel.spacing.x = unit(6, "mm"),
@@ -227,8 +228,8 @@ pedestal_O1vsO3_I1 <- ggplot(data=pedestal_data_check_unique[instar == 1], aes(y
         #axis.title.y = element_blank(),
         axis.line = element_line(size = 1),
         axis.title.x = element_text(size=15,family='Arial'), 
-        axis.title.y = element_text(size=15, family='Arial'),
-        axis.text = element_text(size=15, family='Arial'),
+        axis.title.y = element_text(size=15,family='Arial'), 
+        axis.text = element_text(size=15,family='Arial'), 
         strip.text.x = element_text(size = 15, color = "black"),
         strip.text.y = element_text(size = 15, color = "black"),
         panel.spacing.x = unit(6, "mm"),
@@ -253,8 +254,8 @@ pedestal_O2vsO3_I1 <- ggplot(data=pedestal_data_check_unique[instar == 1], aes(y
         #axis.title.y = element_blank(),
         axis.line = element_line(size = 1),
         axis.title.x = element_text(size=15,family='Arial'), 
-        axis.title.y = element_text(size=15, family='Arial'),
-        axis.text = element_text(size=15, family='Arial'),
+        axis.title.y = element_text(size=15,family='Arial'), 
+        axis.text = element_text(size=15,family='Arial'), 
         strip.text.x = element_text(size = 15, color = "black"),
         strip.text.y = element_text(size = 15, color = "black"),
         panel.spacing.x = unit(6, "mm"),
@@ -280,8 +281,8 @@ pedestal_O1vsO2_I2 <- ggplot(data=pedestal_data_check_unique[instar == 2], aes(y
                                 #axis.title.y = element_blank(),
                                 axis.line = element_line(size = 1),
                                 axis.title.x = element_text(size=15,family='Arial'), 
-                                axis.title.y = element_text(size=15, family='Arial'),
-                                axis.text = element_text(size=15, family='Arial'),
+                                axis.title.y = element_text(size=15,family='Arial'), 
+                                axis.text = element_text(size=15,family='Arial'), 
                                 strip.text.x = element_text(size = 15, color = "black"),
                                 strip.text.y = element_text(size = 15, color = "black"),
                                 panel.spacing.x = unit(6, "mm"),
@@ -306,8 +307,8 @@ pedestal_O1vsO3_I2 <- ggplot(data=pedestal_data_check_unique[instar == 2], aes(y
                                 #axis.title.y = element_blank(),
                                 axis.line = element_line(size = 1),
                                 axis.title.x = element_text(size=15,family='Arial'), 
-                                axis.title.y = element_text(size=15, family='Arial'),
-                                axis.text = element_text(size=15, family='Arial'),
+                                axis.title.y = element_text(size=15,family='Arial'), 
+                                axis.text = element_text(size=15,family='Arial'), 
                                 strip.text.x = element_text(size = 15, color = "black"),
                                 strip.text.y = element_text(size = 15, color = "black"),
                                 panel.spacing.x = unit(6, "mm"),
@@ -332,8 +333,8 @@ pedestal_O2vsO3_I2 <- ggplot(data=pedestal_data_check_unique[instar == 2], aes(y
                                 #axis.title.y = element_blank(),
                                 axis.line = element_line(size = 1),
                                 axis.title.x = element_text(size=15,family='Arial'), 
-                                axis.title.y = element_text(size=15, family='Arial'),
-                                axis.text = element_text(size=15, family='Arial'),
+                                axis.title.y = element_text(size=15,family='Arial'), 
+                                axis.text = element_text(size=15,family='Arial'), 
                                 strip.text.x = element_text(size = 15, color = "black"),
                                 strip.text.y = element_text(size = 15, color = "black"),
                                 panel.spacing.x = unit(6, "mm"),
@@ -451,28 +452,28 @@ group_mean_length <- ddply(GUI_data_plusManual_use_instar, c("instar", "treatmen
 
 instar_plot <- ggplot(data = GUI_data_plusManual_use_instar, 
                           aes(x=animal_length_mm, color=as.factor(instar))) +
-                      geom_density(aes(y= ..count..), size=1) + 
+                      geom_density(aes(y= ..scaled..), size=0.8) + 
                       #geom_vline(data=group_mean_length, 
                       #           aes(xintercept=grp.mean), linetype="dashed", size = 0.5, colour="black") + 
                       facet_wrap(~treatment_new, ncol=1) +
-                      labs(x = expression(animal~length~"[mm]"[~DAPCHA]), y = "density") +
+                      labs(x = expression(animal~length~"[mm]"[~DAPCHA]), y = expression(density[])) +
                       
                       theme(legend.position="none", 
                             rect = element_rect(fill = "transparent"),
-                            panel.grid.major = element_line(colour = "grey70", size=0.25),
-                            panel.grid.minor = element_line(colour = "grey90", size=0.1),
+                            # panel.grid.major = element_line(colour = "grey70", size=0.25),
+                            # panel.grid.minor = element_line(colour = "grey90", size=0.1),
                             panel.background = element_rect(fill = "transparent",colour = NA),
                             plot.background = element_rect(fill = "transparent",colour = NA), 
                             #strip.text.x = element_blank(),
-                            axis.text.y = element_blank(), 
+                            # axis.text.y = element_blank(),  CHANGE HERE
                             #axis.title.x = element_blank(), 
                             #axis.title.y = element_blank(),
                             axis.line = element_line(size = 1),
-                            axis.title.x = element_text(size=15,family='Arial'), 
-                            axis.title.y = element_text(size=15, family='Arial'),
-                            axis.text = element_text(size=15, family='Arial'),
-                            strip.text.x = element_text(size = 15, color = "black"),
-                            strip.text.y = element_text(size = 15, color = "black"),
+                            axis.title.x = element_text(size=11), 
+                            axis.title.y = element_text(size=11), 
+                            axis.text = element_text(size=11), 
+                            strip.text.x = element_text(size = 11, color = "black"),
+                            strip.text.y = element_text(size = 11, color = "black"),
                             panel.spacing.x = unit(6, "mm"),
                             panel.spacing.y = unit(6, "mm")) 
 
@@ -495,7 +496,6 @@ pedestal_I2_plot + coord_flip() + scale_x_continuous(limits=c(-20,70), breaks=c(
 instar_plot + scale_color_manual(values=c("#7F7F7F","#0000CC","#7F7F7F","#0000CC"))
 
 
-
 patchwork_plots_induction <- length_plot + geom_abline(intercept = 0, slope = 1, size=0.8) + scale_color_manual(values=c("#FF0000","#0000CC","#A0A0A0")) + 
                               microstage_plot + geom_abline(intercept = 0, slope = 1, size=0.8) + scale_color_manual(values=c("#7F7F7F")) + 
                               # pedestal_plot + coord_flip() + scale_x_discrete(limits=c("0","30","50")) + scale_y_continuous(limits=c(0.15,0.31), breaks=c(0.15,0.25,0.35)) + scale_color_manual(values=c("#FF0000","#0000CC","#A0A0A0","#FF0000","#0000CC","#A0A0A0")) + 
@@ -504,6 +504,15 @@ patchwork_plots_induction <- length_plot + geom_abline(intercept = 0, slope = 1,
                               plot_layout(ncol=4, widths = c(1,1,1,1))
 
 patchwork_plots_induction
+
+# ggsave("patchwork_plots_induction.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
+# Saving 16.9 x 6.11 in image == 1217 - 439
+
+setEPS()
+postscript("Fig1_revised_NEU_NEU.eps", colormodel = "RGB", width = 12.17, height = 4.39)
+plot(patchwork_plots_induction)
+dev.off()
+
 
 
 # instar 1
@@ -521,6 +530,8 @@ patchwork_plots_induction_suppl_I1 <- pedestal_O1vsO2_I1 + scale_x_continuous(li
   
 patchwork_plots_induction_suppl_I1
 
+ggsave("patchwork_plots_induction_extra_I1.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
+
 
 # instar 2
 pedestal_O1vsO2_I2 + scale_x_continuous(limits=c(-10,60), breaks=c(0,30,50)) + scale_y_continuous(limits=c(-10,60), breaks=c(0,30,50)) + scale_color_manual(values=c("#000000","#FF0000")) 
@@ -536,4 +547,6 @@ patchwork_plots_induction_suppl_I2 <- pedestal_O1vsO2_I2 + scale_x_continuous(li
   plot_layout(ncol=3, widths = c(1,1,1))
 
 patchwork_plots_induction_suppl_I2
+
+ggsave("patchwork_plots_induction_extra_I2.tiff", dpi = 300, device = "tiff")  # Saving 16.9 x 6.11 in image
 
